@@ -13,3 +13,7 @@ imgui.ini
 *-rescue.dcm
 fp-info-cache
 sym-lib-table
+.vs
+LibAdvatek/Debug
+LibAdvatek/Release
+x64
