@@ -42,6 +42,22 @@ class IClient;
 	for (pt::ptree::value_type &node : root.get_child(#atr)) { \
 	 device->atr[std::stoi(node.first)] = std::string(node.second.data()).c_str(); }
 
+enum ETestPattern
+{
+	ETP_NONE = 0,
+	ETP_CYCLE,
+	ETP_RED,
+	ETP_GREEN,
+	ETP_BLUE,
+	ETP_WHITE,
+	ETP_SET_COLOUR,
+	ETP_FADE,
+	ETP_STROBE_VERT,
+	ETP_STROBE_HORZ,
+	ETP_RAINBOW,
+	ETP_PIXELS
+};
+
 typedef struct tAdvatekDevice {
 	uint8_t ProtVer; // Protocol version
 	uint8_t CurrentProtVer; // Using Protocol version
@@ -148,14 +164,7 @@ class advatek_manager
 {
 public:
 	bool deviceExist(uint8_t * Mac);
-	std::string macStr(uint8_t * address);
-	std::string ipStr(uint8_t * address);
-
-	std::vector <std::string> networkAdaptors;
-	int currentAdaptor = -1;
 	
-	std::vector<sAdvatekDevice*> devices;
-
 	void updateDevice(int d);
 	void identifyDevice(int d, uint8_t duration);
 	void setTest(int d);
@@ -177,10 +186,19 @@ public:
 	
 	std::string importJSON(int d, std::string path, sImportOptions &importOptions);
 	void exportJSON(int d, std::string path);
+	
+	std::vector<sAdvatekDevice *> Devices() const { return devices; }
+
+	std::vector<std::string> NetworkAdaptors() const { return networkAdaptors; }
+private:
+	std::vector<sAdvatekDevice*> devices;
+	std::string macStr(uint8_t * address);
+	std::string ipStr(uint8_t * address);
+
+	std::vector <std::string> networkAdaptors;
+	int currentAdaptor = -1;
 
 	static const char* RGBW_Order[24];
 
 	IClient* m_pUdpClient;
-private:
-
 };

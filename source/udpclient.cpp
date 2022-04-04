@@ -42,7 +42,7 @@ bool UdpClient::HasMessages()
     return !incomingMessages.empty();
 }
 
-void UdpClient::Send(const std::vector<uint8_t>& message, std::string& s_adr, bool b_broadcast)
+void UdpClient::Send(const std::vector<uint8_t>& message, std::string& s_adr, bool b_broadcast, int port)
 {
     boost::asio::ip::address_v4 local_interface = boost::asio::ip::address_v4::from_string(m_ipAddress.c_str());
     boost::asio::ip::multicast::outbound_interface option(local_interface);
@@ -50,7 +50,7 @@ void UdpClient::Send(const std::vector<uint8_t>& message, std::string& s_adr, bo
 
     socket.set_option(boost::asio::socket_base::broadcast(b_broadcast));
     //remote_endpoint = boost::asio::ip::udp::endpoint(boost::asio::ip::address::from_string(s_adr.c_str()), m_serverport);
-    boost::asio::ip::udp::endpoint sendpoint(boost::asio::ip::address::from_string(s_adr.c_str()), m_serverport);
+    boost::asio::ip::udp::endpoint sendpoint(boost::asio::ip::address::from_string(s_adr.c_str()), port);
 
     //sock.send_to(boost::asio::buffer(message), sendpoint);
 
