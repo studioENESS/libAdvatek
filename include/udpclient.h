@@ -39,8 +39,8 @@ protected:
 private:
 	std::string m_ipAddress;
 	unsigned short m_serverport;
-	boost::asio::io_service io_service;
-	boost::asio::io_context io_context;
+	boost::asio::io_service _io_service;
+	boost::asio::io_service _io_context;
 	udp::socket socket, recvsocket;
 	udp::endpoint server_endpoint;
 	udp::endpoint remote_endpoint;

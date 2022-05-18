@@ -1,119 +1,20 @@
 #include "advatek_assistor.h"
 #include "udpclient.h"
+
 #ifndef _WIN32
 #include <netdb.h>
 #include <ifaddrs.h>
 #endif
 
 namespace pt = boost::property_tree;
-
-const char* DriverTypes[3] = {
-		"RGB only",
-		"RGBW only",
-		"Either RGB or RGBW"
-};
-
-const char* DriverSpeedsMhz[12] = {
-	"0.4 MHz", // Data Only Slow
-	"0.6 MHz", // Data Only Fast
-	"0.8 MHz",
-	"1.0 MHz",
-	"1.2 MHz",
-	"1.4 MHz",
-	"1.6 MHz",
-	"1.8 MHz",
-	"2.0 MHz",
-	"2.2 MHz",
-	"2.5 MHz",
-	"2.9 MHz"
-};
-
-const char* TestModes[9] = {
-	"None(Live Control Data)",
-	"RGBW Cycle",
-	"Red",
-	"Green",
-	"Blue",
-	"White",
-	"Set Color",
-	"Color Fade",
-	"Single Pixel"
-};
-
- const char* advatek_manager::RGBW_Order[24] = {
-		"R-G-B/R-G-B-W",
-		"R-B-G/R-B-G-W",
-		"G-R-B/G-R-B-W",
-		"B-R-G/B-R-G-W",
-		"G-B-R/G-B-R-W",
-		"B-G-R/B-G-R-W",
-		"R-G-W-B",
-		"R-B-W-G",
-		"G-R-W-B",
-		"B-R-W-G",
-		"G-B-W-R",
-		"B-G-W-R",
-		"R-W-G-B",
-		"R-W-B-G",
-		"G-W-R-B",
-		"B-W-R-G",
-		"G-W-B-R",
-		"B-W-G-R",
-		"W-R-G-B",
-		"W-R-B-G",
-		"W-G-R-B",
-		"W-B-R-G",
-		"W-G-B-R",
-		"W-B-G-R"
-	};
-
-std::string macString(uint8_t * address) {
-	std::stringstream ss;
-
-	for (int i(0); i < 6; i++) {
-		ss << std::hex << std::uppercase << std::setw(2) << static_cast<int>(address[i]);
-		if (i < 5) ss << ":";
-	}
-
-	return ss.str();
-}
-
-std::string ipString(uint8_t * address) {
-	std::stringstream ss;
-
-	for (int i(0); i < 4; i++) {
-		ss << static_cast<int>(address[i]);
-		if (i < 3) ss << ".";
-	}
-
-	return ss.str();
-}
-
-std::vector<std::string> splitter(std::string in_pattern, std::string& content) {
-	std::vector<std::string> split_content;
-
-	std::regex pattern(in_pattern);
-	std::copy(std::sregex_token_iterator(content.begin(), content.end(), pattern, -1),
-		std::sregex_token_iterator(), std::back_inserter(split_content));
-	return split_content;
-}
-
-void insertSwapped16(std::vector<uint8_t> &dest, uint16_t* pData, int32_t size)
-{
-	for (int i = 0; i < size; i++)
-	{
-		uint16_t data = pData[i];
-		dest.push_back((uint8_t)(data >> 8));
-		dest.push_back((uint8_t)data);
-	}
-}
+std::vector<uint8_t> dataTape;
 
 bool advatek_manager::deviceExist(uint8_t * Mac) {
 
-	for (int d(0); d < advatek_manager::devices.size(); d++) {
+	for (int d(0); d < connectedDevices.size(); d++) {
 		bool exist = true;
 		for (int i(0); i < 6; i++) {
-			if (advatek_manager::devices[d]->Mac[i] != Mac[i]) exist = false;
+			if (connectedDevices[d]->Mac[i] != Mac[i]) exist = false;
 		}
 		if (exist) return true;
 	}
@@ -121,14 +22,139 @@ bool advatek_manager::deviceExist(uint8_t * Mac) {
 	return false;
 }
 
+bool advatek_manager::ipInRange(std::string ipStr, sAdvatekDevice* device) {
+
+	int ip0, ip1, ip2, ip3;
+	sscanf(ipStr.c_str(), "%i.%i.%i.%i", &ip0, &ip1, &ip2, &ip3);
+	
+	if (device->StaticIP[0] == ip0 &&
+		device->StaticIP[1] == ip1 &&
+		device->StaticIP[2] == ip2) {
+		return true;
+	}
+
+	return false;
+}
+
+size_t advatek_manager::getConnectedDeviceIndex(std::string mac) {
+	for (size_t index = 0; index < connectedDevices.size(); ++index) {
+		if (macString(connectedDevices[index]->Mac) == mac) return index;
+	}
+	return -1;
+}
+
+void advatek_manager::removeConnectedDevice(std::string mac) {
+	size_t index = getConnectedDeviceIndex(mac);
+	removeConnectedDevice(index);
+}
+
+void advatek_manager::removeConnectedDevice(size_t index) {
+	if (index < 0 || index > connectedDevices.size()-1) return;
+
+	auto device = connectedDevices[index];
+
+	if (device) {
+		if (device->Model) delete device->Model;
+		if (device->Firmware) delete device->Firmware;
+		if (device->OutputPixels) delete[] device->OutputPixels;
+		if (device->OutputUniv) delete[] device->OutputUniv;
+		if (device->OutputChan) delete[] device->OutputChan;
+		if (device->OutputNull) delete[] device->OutputNull;
+		if (device->OutputZig) delete[] device->OutputZig;
+		if (device->OutputReverse) delete[] device->OutputReverse;
+		if (device->OutputColOrder) delete[] device->OutputColOrder;
+		if (device->OutputGrouping) delete[] device->OutputGrouping;
+		if (device->OutputBrightness) delete[] device->OutputBrightness;
+		if (device->DmxOutOn) delete[] device->DmxOutOn;
+		if (device->TempDmxOutOn) delete[] device->TempDmxOutOn;
+		if (device->DmxOutUniv) delete[] device->DmxOutUniv;
+		if (device->DriverType) delete[] device->DriverType;
+		if (device->DriverSpeed) delete[] device->DriverSpeed;
+		if (device->DriverExpandable) delete[] device->DriverExpandable;
+		if (device->DriverNames) delete[] device->DriverNames;
+		if (device->VoltageBanks) delete[] device->VoltageBanks;
+		if (device) delete device;
+	}
+	connectedDevices.erase(connectedDevices.begin() + index);
+}
+
+bool advatek_manager::sameNetworkSettings(sAdvatekDevice* fromDevice, sAdvatekDevice* toDevice) {
+	bool same = true;
+	
+	if (ipString(toDevice->StaticIP) != ipString(fromDevice->StaticIP)) same = false;
+	if (ipString(toDevice->StaticSM) != ipString(fromDevice->StaticSM)) same = false;
+	if (toDevice->DHCP != fromDevice->DHCP) same = false;
+
+	return same;
+}
+
+bool advatek_manager::devicesInSync(sAdvatekDevice* fromDevice, sAdvatekDevice* toDevice) {
+	if (!deviceCompatible(fromDevice, toDevice)) return false;
+	if (!sameNetworkSettings(fromDevice, toDevice)) return false;
+	if (toDevice->Protocol != fromDevice->Protocol) return false;
+	if (toDevice->HoldLastFrame != fromDevice->HoldLastFrame) return false;
+	if (toDevice->SimpleConfig != fromDevice->SimpleConfig) return false;
+	
+	// NumOutputs
+	for (int output = 0; output < toDevice->NumOutputs; output++) {
+		if (toDevice->OutputPixels[output] != fromDevice->OutputPixels[output]) return false;
+		if (toDevice->OutputUniv[output] != fromDevice->OutputUniv[output]) return false;
+		if (toDevice->OutputChan[output] != fromDevice->OutputChan[output]) return false;
+		if (toDevice->OutputNull[output] != fromDevice->OutputNull[output]) return false;
+		if (toDevice->OutputZig[output] != fromDevice->OutputZig[output]) return false;
+		if (toDevice->OutputReverse[output] != fromDevice->OutputReverse[output]) return false;
+		if (toDevice->OutputColOrder[output] != fromDevice->OutputColOrder[output]) return false;
+		if (toDevice->OutputGrouping[output] != fromDevice->OutputGrouping[output]) return false;
+		if (toDevice->OutputBrightness[output] != fromDevice->OutputBrightness[output]) return false;
+	}
+
+	// NumDMXOutputs
+	if (toDevice->ProtocolsOnDmxOut != fromDevice->ProtocolsOnDmxOut) return false;
+	for (int output = 0; output < toDevice->NumDMXOutputs; output++) {
+		if (toDevice->DmxOutOn[output] != fromDevice->DmxOutOn[output]) return false;
+		if (toDevice->DmxOutUniv[output] != fromDevice->DmxOutUniv[output]) return false;
+	}
+
+	//NumDrivers
+	for (int output = 0; output < toDevice->NumDrivers; output++) {
+		if (toDevice->DriverType[output] != fromDevice->DriverType[output]) return false;
+		if (toDevice->DriverSpeed[output] != fromDevice->DriverSpeed[output]) return false;
+		if (toDevice->DriverExpandable[output] != fromDevice->DriverExpandable[output]) return false;
+	}
+	
+	if (toDevice->CurrentDriver != fromDevice->CurrentDriver) return false;
+	if (toDevice->CurrentDriverType != fromDevice->CurrentDriverType) return false;
+	if (toDevice->CurrentDriverSpeed != fromDevice->CurrentDriverSpeed) return false;
+	if (toDevice->CurrentDriverExpanded != fromDevice->CurrentDriverExpanded) return false;
+
+	for (int i = 0; i < 4; i++) {
+		if (toDevice->Gamma[i] != fromDevice->Gamma[i]) return false;
+	}
+
+	if ( std::string(toDevice->Nickname) != std::string(fromDevice->Nickname)) return false;	
+	if (toDevice->MaxTargetTemp != fromDevice->MaxTargetTemp) return false;
+
+	return true;
+}
+
+bool advatek_manager::deviceCompatible(sAdvatekDevice* fromDevice, sAdvatekDevice* toDevice) {
+	// Check for output channel count etc.
+	// In the future we can add ignore flags for DMX etc.
+	// And make it compatable so you can map smaller devices to bigger ones
+	// toDevice->NumOutputs < fromDevice->NumOutputs
+	bool compatible = true;
+	if (toDevice->MaxPixPerOutput != fromDevice->MaxPixPerOutput) compatible = false;
+	if (toDevice->NumOutputs != fromDevice->NumOutputs) compatible = false;
+	if (toDevice->NumDMXOutputs != fromDevice->NumDMXOutputs) compatible = false;
+	if (toDevice->NumDrivers != fromDevice->NumDrivers) compatible = false;
+	if (toDevice->DriverNameLength != fromDevice->DriverNameLength) compatible = false;
+	return compatible;
+}
 
 void advatek_manager::listen() {
-	uint8_t buffer[100000];
-
 	if (m_pUdpClient && m_pUdpClient->HasMessages())
 	{
-		auto buf = m_pUdpClient->PopMessage();
-		process_udp_message(buf.data());
+		process_udp_message(m_pUdpClient->PopMessage().data());
 	}
 }
 
@@ -136,7 +162,7 @@ void advatek_manager::send_udp_message(std::string ip_address, int port, bool b_
 {
 	if (m_pUdpClient)
 	{
-		m_pUdpClient->Send(message, ip_address, b_broadcast, port);
+		m_pUdpClient->Send(message, ip_address, b_broadcast);
 	}
 
 }
@@ -151,41 +177,134 @@ void advatek_manager::broadcast_udp_message(std::vector<uint8_t> message)
 	send_udp_message(AdvAdr, AdvPort, true, message);
 }
 
+std::vector<uint8_t> idTape;
 void advatek_manager::identifyDevice(int d, uint8_t duration) {
-	auto device = advatek_manager::devices[d];
+	auto device = advatek_manager::connectedDevices[d];
+	idTape.clear();
+	idTape.resize(12);
+	idTape[0] = 'A';
+	idTape[1] = 'd';
+	idTape[2] = 'v';
+	idTape[3] = 'a';
+	idTape[4] = 't';
+	idTape[5] = 'e';
+	idTape[6] = 'c';
+	idTape[7] = 'h';
+	idTape[8] = 0x00;   // Null Terminator
+	idTape[9] = 0x00;   // OpCode
+	idTape[10] = 0x05;  // OpCode
+	idTape[11] = 0x08;  // ProtVer
 
-	std::vector<uint8_t> dataTape;
+	idTape.insert(idTape.end(), device->Mac, device->Mac + 6);
+	idTape.push_back(duration);
 
-	dataTape.resize(12);
-	dataTape[0] = 'A';
-	dataTape[1] = 'd';
-	dataTape[2] = 'v';
-	dataTape[3] = 'a';
-	dataTape[4] = 't';
-	dataTape[5] = 'e';
-	dataTape[6] = 'c';
-	dataTape[7] = 'h';
-	dataTape[8] = 0x00;   // Null Terminator
-	dataTape[9] = 0x00;   // OpCode
-	dataTape[10] = 0x05;  // OpCode
-	dataTape[11] = 0x08;  // ProtVer
-
-	dataTape.insert(dataTape.end(), device->Mac, device->Mac + 6);
-	dataTape.push_back(duration);
-
-	unicast_udp_message(ipString(device->CurrentIP), dataTape);
+	unicast_udp_message(ipString(device->CurrentIP), idTape);
 }
 
-void advatek_manager::updateDevice(int d) {
+void advatek_manager::copyToMemoryDevice(sAdvatekDevice* fromDevice) {
+	memoryDevices.clear();
+	sAdvatekDevice * memoryDevice = new sAdvatekDevice();
+	copyDevice(fromDevice, memoryDevice, true);
+	addUID(memoryDevice);
+	advatek_manager::memoryDevices.emplace_back(memoryDevice);
+}
 
-	auto device = advatek_manager::devices[d];
+void advatek_manager::pasteFromMemoryDeviceTo(sAdvatekDevice* toDevice) {
+	if (memoryDevices.size() == 0) {
+		return;
+	}
+	copyDevice(memoryDevices[0], toDevice, false);
+}
 
-	if ((bool)device->SimpleConfig) {
-		advatek_manager::process_simple_config(d);
+pt::ptree tree_virt_device;
+void advatek_manager::copyToNewVirtualDevice(sAdvatekDevice* fromDevice) {
+	tree_virt_device.clear();
+	getJSON(fromDevice, tree_virt_device);
+	sAdvatekDevice * device = new sAdvatekDevice();
+	sImportOptions importOptions = sImportOptions();
+	importOptions.init = true;
+	importJSON(device, tree_virt_device, importOptions);
+	addUID(device);
+	advatek_manager::virtualDevices.emplace_back(device);
+}
+
+void advatek_manager::addVirtualDevice(boost::property_tree::ptree advatek_device, sImportOptions &importOptions) {
+	sAdvatekDevice * device = new sAdvatekDevice();
+	importJSON(device, advatek_device, importOptions);
+	addUID(device);
+	advatek_manager::virtualDevices.emplace_back(device);
+}
+
+std::stringstream ss_json;
+pt::ptree tree_add_virt_device;
+void advatek_manager::addVirtualDevice(sImportOptions &importOptions) {
+	tree_add_virt_device.clear();
+	ss_json.str(std::string());
+	ss_json.clear();
+	ss_json << importOptions.json;
+	pt::read_json(ss_json, tree_add_virt_device);
+	
+	if (tree_add_virt_device.count("advatek_devices") > 0) {
+		// Might have multiple devices
+		for (auto &device : tree_add_virt_device.get_child("advatek_devices"))
+		{
+			addVirtualDevice(device.second, importOptions);
+		}
+	} else { // Single device
+		addVirtualDevice(tree_add_virt_device, importOptions);
+	}
+}
+
+void advatek_manager::addUID(sAdvatekDevice* device) {
+	std::hash<std::string> hasher;
+	device->uid = hasher(macString(device->Mac).append(std::to_string(rand())));
+}
+
+std::vector<sAdvatekDevice*> advatek_manager::getDevicesWithStaticIP(std::vector<sAdvatekDevice*>& devices, std::string ipstr) {
+	std::vector<sAdvatekDevice*> matchedDevices;
+
+	for (int d(0); d < devices.size(); d++) {
+		if (ipString(devices[d]->StaticIP) == ipstr) {
+			matchedDevices.emplace_back(devices[d]);
+		}
 	}
 
-	std::vector<uint8_t> dataTape;
+	return matchedDevices;
+}
 
+std::vector<sAdvatekDevice*> advatek_manager::getDevicesWithNickname(std::vector<sAdvatekDevice*>& devices, std::string nickname) {
+	std::vector<sAdvatekDevice*> matchedDevices;
+
+	for (int d(0); d < devices.size(); d++) {
+		if (std::string(devices[d]->Nickname) == nickname) {
+			matchedDevices.emplace_back(devices[d]);
+		}
+	}
+
+	return matchedDevices;
+}
+
+std::vector<sAdvatekDevice*> advatek_manager::getDevicesWithMac(std::vector<sAdvatekDevice*>& devices, std::string mac) {
+	std::vector<sAdvatekDevice*> matchedDevices;
+
+	for (int d(0); d < devices.size(); d++) {
+		if (macString(devices[d]->Mac) == mac) {
+			matchedDevices.emplace_back(devices[d]);
+		}
+	}
+
+	return matchedDevices;
+}
+
+void advatek_manager::pasteToNewVirtualDevice() {
+	sAdvatekDevice * device = new sAdvatekDevice();
+	pasteFromMemoryDeviceTo(device);
+	addUID(device);
+	virtualDevices.emplace_back(device);
+}
+
+void advatek_manager::updateDeviceWithMac(sAdvatekDevice* device, uint8_t* Mac, std::string ipStr) {
+	dataTape.clear();
 	dataTape.resize(12);
 	dataTape[0] = 'A';
 	dataTape[1] = 'd';
@@ -200,7 +319,8 @@ void advatek_manager::updateDevice(int d) {
 	dataTape[10] = 0x05;  // OpCode
 	dataTape[11] = 0x08;  // ProtVer
 
-	dataTape.insert(dataTape.end(), device->Mac, device->Mac + 6);
+	// Set Mac Address
+	dataTape.insert(dataTape.end(), Mac, Mac + 6);
 
 	dataTape.push_back(device->DHCP);
 
@@ -237,84 +357,177 @@ void advatek_manager::updateDevice(int d) {
 
 	dataTape.push_back(device->MaxTargetTemp);
 
-	unicast_udp_message(ipString(device->CurrentIP), dataTape);
+	unicast_udp_message(ipStr, dataTape);
 }
 
-void advatek_manager::setTest(int d) {
+void advatek_manager::updateDevice(int d) {
 
-	auto device = advatek_manager::devices[d];
+	auto device = advatek_manager::connectedDevices[d];
 
-	std::vector<uint8_t> dataTape;
-	dataTape.resize(12);
-	dataTape[0] = 'A';
-	dataTape[1] = 'd';
-	dataTape[2] = 'v';
-	dataTape[3] = 'a';
-	dataTape[4] = 't';
-	dataTape[5] = 'e';
-	dataTape[6] = 'c';
-	dataTape[7] = 'h';
-	dataTape[8] = 0x00;   // Null Terminator
-	dataTape[9] = 0x00;   // OpCode
-	dataTape[10] = 0x08;  // OpCode
-	dataTape[11] = 0x08;  // ProtVer
-
-	dataTape.insert(dataTape.end(), device->Mac, device->Mac + 6);
-
-	dataTape.push_back(device->TestMode);
-
-	dataTape.insert(dataTape.end(), device->TestCols, device->TestCols + 4);
-
-	dataTape.push_back(device->TestOutputNum);
-
-	dataTape.push_back((uint8_t)(device->TestPixelNum >> 8));
-	dataTape.push_back((uint8_t)device->TestPixelNum);
-
-	unicast_udp_message(ipString(device->CurrentIP), dataTape);
-}
-
-void advatek_manager::clearDevices() {
-	for (auto device : advatek_manager::devices)
-	{
-		if (device)
-		{
-			delete device->Model;
-			delete device->Firmware;
-			delete[] device->OutputPixels;
-			delete[] device->OutputUniv;
-			delete[] device->OutputChan;
-			delete[] device->OutputNull;
-			delete[] device->OutputZig;
-			delete[] device->OutputReverse;
-			delete[] device->OutputColOrder;
-			delete[] device->OutputGrouping;
-			delete[] device->OutputBrightness;
-			delete[] device->DmxOutOn;
-			delete[] device->DmxOutUniv;
-			delete[] device->DriverType;
-			delete[] device->DriverSpeed;
-			delete[] device->DriverExpandable;
-			delete[] device->DriverNames;
-			delete[] device->VoltageBanks;
-			delete device;
-		}
+	if ((bool)device->SimpleConfig) {
+		advatek_manager::process_simple_config(d);
 	}
 
-	advatek_manager::devices.clear();
+	updateDeviceWithMac(device, device->Mac, ipString(device->CurrentIP));
 }
 
-void setEndUniverseChannel(uint16_t startUniverse, uint16_t startChannel, uint16_t pixelCount, uint16_t outputGrouping, uint16_t &endUniverse, uint16_t &endChannel) {
-	pixelCount *= outputGrouping;
-	uint16_t pixelChannels = (3 * pixelCount); // R-G-B data
-	uint16_t pixelUniverses = ((float)(startChannel + pixelChannels) / 510.f);
+void advatek_manager::updateConnectedDevice(sAdvatekDevice* fromDevice, sAdvatekDevice* connectedDevice) {
+	updateDeviceWithMac(fromDevice, connectedDevice->Mac, ipString(connectedDevice->CurrentIP));
+}
 
-	endUniverse = startUniverse + pixelUniverses;
-	endChannel = (startChannel + pixelChannels - 1) % 510;
+std::vector<uint8_t> testTape;
+void advatek_manager::setTest(int d) {
+
+	auto device = connectedDevices[d];
+	if (bTestAll) {
+		testTape.clear();
+		testTape.resize(12);
+		testTape[0] = 'A';
+		testTape[1] = 'd';
+		testTape[2] = 'v';
+		testTape[3] = 'a';
+		testTape[4] = 't';
+		testTape[5] = 'e';
+		testTape[6] = 'c';
+		testTape[7] = 'h';
+		testTape[8] = 0x00;   // Null Terminator
+		testTape[9] = 0x00;   // OpCode
+		testTape[10] = 0x08;  // OpCode
+		testTape[11] = device->ProtVer;
+
+		testTape.insert(testTape.end(), device->Mac, device->Mac + 6);
+
+		testTape.push_back(device->TestMode);
+
+		testTape.insert(testTape.end(), device->TestCols, device->TestCols + 4);
+
+		// Protver 7 does not process after this but we can still send it ...
+		testTape.push_back(device->TestOutputNum);
+
+		testTape.push_back((uint8_t)(device->TestPixelNum >> 8));
+		testTape.push_back((uint8_t)device->TestPixelNum);
+		for (auto adevice : connectedDevices) {
+			testTape[11] = adevice->ProtVer;
+			for(int mac=0;mac<6;mac++)
+				testTape[12+mac] = adevice->Mac[mac];
+
+			unicast_udp_message(ipString(adevice->CurrentIP), testTape);
+		}
+	} else {
+		testTape.clear();
+		testTape.resize(12);
+		testTape[0] = 'A';
+		testTape[1] = 'd';
+		testTape[2] = 'v';
+		testTape[3] = 'a';
+		testTape[4] = 't';
+		testTape[5] = 'e';
+		testTape[6] = 'c';
+		testTape[7] = 'h';
+		testTape[8] = 0x00;   // Null Terminator
+		testTape[9] = 0x00;   // OpCode
+		testTape[10] = 0x08;  // OpCode
+		testTape[11] = device->ProtVer;
+
+		testTape.insert(testTape.end(), device->Mac, device->Mac + 6);
+
+		testTape.push_back(device->TestMode);
+
+		testTape.insert(testTape.end(), device->TestCols, device->TestCols + 4);
+
+		// Protver 7 does not process after this but we can still send it ...
+		testTape.push_back(device->TestOutputNum);
+
+		testTape.push_back((uint8_t)(device->TestPixelNum >> 8));
+		testTape.push_back((uint8_t)device->TestPixelNum);
+
+		unicast_udp_message(ipString(device->CurrentIP), testTape);
+	}
+}
+
+bool compareCurrentIP(sAdvatekDevice* device1, sAdvatekDevice* device2)
+{
+    return (device1->CurrentIP[3] < device2->CurrentIP[3]);
+}
+
+bool compareStaticIP(sAdvatekDevice* device1, sAdvatekDevice* device2)
+{
+	return (device1->StaticIP[3] < device2->StaticIP[3]);
+}
+
+bool compareNickname(sAdvatekDevice* device1, sAdvatekDevice* device2)
+{
+	return (std::string(device1->Nickname).compare(std::string(device2->Nickname)) < 0);
+}
+
+void advatek_manager::sortDevices(std::vector<sAdvatekDevice*> &devices, int sortType){
+	switch (sortType) {
+	case 1:
+		sort(devices.begin(), devices.end(), compareCurrentIP);
+		break;
+	case 2:
+		sort(devices.begin(), devices.end(), compareStaticIP);
+		break;
+	case 3:
+		sort(devices.begin(), devices.end(), compareNickname);
+		break;
+	default:
+		break;
+	}
+}
+
+void advatek_manager::clearDevice(sAdvatekDevice* device) {
+	if (device) {
+		if (device->Model) delete device->Model;
+		if (device->Firmware) delete device->Firmware;
+		if (device->OutputPixels) delete[] device->OutputPixels;
+		if (device->OutputUniv) delete[] device->OutputUniv;
+		if (device->OutputChan) delete[] device->OutputChan;
+		if (device->OutputNull) delete[] device->OutputNull;
+		if (device->OutputZig) delete[] device->OutputZig;
+		if (device->OutputReverse) delete[] device->OutputReverse;
+		if (device->OutputColOrder) delete[] device->OutputColOrder;
+		if (device->OutputGrouping) delete[] device->OutputGrouping;
+		if (device->OutputBrightness) delete[] device->OutputBrightness;
+		if (device->DmxOutOn) delete[] device->DmxOutOn;
+		if (device->TempDmxOutOn) delete[] device->TempDmxOutOn;
+		if (device->DmxOutUniv) delete[] device->DmxOutUniv;
+		if (device->DriverType) delete[] device->DriverType;
+		if (device->DriverSpeed) delete[] device->DriverSpeed;
+		if (device->DriverExpandable) delete[] device->DriverExpandable;
+		if (device->DriverNames)
+		{
+			for (int i = 0; i < device->NumDrivers;i++)
+				delete[] device->DriverNames[i];
+
+			delete[] device->DriverNames;
+
+		}
+		if (device->VoltageBanks) delete[] device->VoltageBanks;
+		if (device) delete device;
+	}
+}
+
+void advatek_manager::clearDevices(std::vector<sAdvatekDevice*> &devices) {
+	for (auto device : devices)
+	{
+		clearDevice(device);
+	}
+
+	devices.clear();
+}
+
+void advatek_manager::clearConnectedDevices() {
+	clearDevices(connectedDevices);
 }
 
 void advatek_manager::bc_networkConfig(int d) {
-	auto device = advatek_manager::devices[d];
-	std::vector<uint8_t> dataTape;
+	auto device = connectedDevices[d];
+	bc_networkConfig(device);
+}
+
+void advatek_manager::bc_networkConfig(sAdvatekDevice* device) {
+	dataTape.clear();
 	dataTape.resize(12);
 	dataTape[0] = 'A';
 	dataTape[1] = 'd';
@@ -340,35 +553,37 @@ void advatek_manager::bc_networkConfig(int d) {
 }
 
 void advatek_manager::poll() {
+	advatek_manager::clearDevices(connectedDevices);
+	softPoll();
+}
 
-	advatek_manager::clearDevices();
+std::vector<uint8_t> pollTape;
+void advatek_manager::softPoll() {
+	pollTape.clear();
+	pollTape.resize(12);
+	pollTape[0] = 'A';
+	pollTape[1] = 'd';
+	pollTape[2] = 'v';
+	pollTape[3] = 'a';
+	pollTape[4] = 't';
+	pollTape[5] = 'e';
+	pollTape[6] = 'c';
+	pollTape[7] = 'h';
+	pollTape[8] = 0x00;   // Null Terminator
+	pollTape[9] = 0x00;   // OpCode
+	pollTape[10] = 0x01;  // OpCode
+	pollTape[11] = 0x08;  // ProtVer
 
-	std::vector<uint8_t> dataTape;
-	dataTape.resize(12);
-	dataTape[0] = 'A';
-	dataTape[1] = 'd';
-	dataTape[2] = 'v';
-	dataTape[3] = 'a';
-	dataTape[4] = 't';
-	dataTape[5] = 'e';
-	dataTape[6] = 'c';
-	dataTape[7] = 'h';
-	dataTape[8] = 0x00;   // Null Terminator
-	dataTape[9] = 0x00;   // OpCode
-	dataTape[10] = 0x01;  // OpCode
-	dataTape[11] = 0x08;  // ProtVer
-
-	broadcast_udp_message(dataTape);
-
+	broadcast_udp_message(pollTape);
 }
 
 void advatek_manager::process_opPollReply(uint8_t * data) {
+
 	sAdvatekDevice * rec_data = new sAdvatekDevice();
 
 	memcpy(&rec_data->ProtVer, data, sizeof(uint8_t));
 	data += 1;
-	//std::cout << "ProtVer: " << (int)rec_data->ProtVer << std::endl;
-
+	
 	memcpy(&rec_data->CurrentProtVer, data, sizeof(uint8_t));
 	data += 1;
 
@@ -378,7 +593,8 @@ void advatek_manager::process_opPollReply(uint8_t * data) {
 	memcpy(&rec_data->ModelLength, data, sizeof(uint8_t));
 	data += 1;
 
-	rec_data->Model = new uint8_t[rec_data->ModelLength];
+	rec_data->Model = new uint8_t[rec_data->ModelLength+1];
+	memset(rec_data->Model, 0x00, sizeof(uint8_t) * (rec_data->ModelLength+1));
 	memcpy(rec_data->Model, data, sizeof(uint8_t)*rec_data->ModelLength);
 	data += rec_data->ModelLength;
 
@@ -391,8 +607,9 @@ void advatek_manager::process_opPollReply(uint8_t * data) {
 	memcpy(&rec_data->LenFirmware, data, sizeof(uint8_t));
 	data += 1;
 
-	rec_data->Firmware = new uint8_t[rec_data->LenFirmware];
-	memcpy(rec_data->Firmware, data, sizeof(uint8_t)*rec_data->LenFirmware);
+	rec_data->Firmware = new uint8_t[rec_data->LenFirmware + 1];
+	memset(rec_data->Firmware, 0x00, sizeof(uint8_t) * (rec_data->LenFirmware + 1));
+	memcpy(rec_data->Firmware, data, sizeof(uint8_t) * rec_data->LenFirmware);
 	data += rec_data->LenFirmware;
 
 	memcpy(&rec_data->Brand, data, sizeof(uint8_t));
@@ -491,6 +708,7 @@ void advatek_manager::process_opPollReply(uint8_t * data) {
 	data += 1;
 
 	rec_data->DmxOutOn = new uint8_t[rec_data->NumDMXOutputs];
+	rec_data->TempDmxOutOn = new bool[rec_data->NumDMXOutputs];
 	memcpy(rec_data->DmxOutOn, data, sizeof(uint8_t)*rec_data->NumDMXOutputs);
 	data += rec_data->NumDMXOutputs;
 
@@ -583,11 +801,39 @@ void advatek_manager::process_opPollReply(uint8_t * data) {
 	data += 2;
 	bswap_16(rec_data->TestPixelNum);
 
-	if (!deviceExist(rec_data->Mac)) advatek_manager::devices.emplace_back(rec_data);
+	// No black test init colour
+	if (((int)rec_data->TestCols[0] + (int)rec_data->TestCols[1] + (int)rec_data->TestCols[2]) == 0)
+	{
+		rec_data->TestCols[0] = rand() % 255;
+		rec_data->TestCols[1] = rand() % 255;
+		rec_data->TestCols[2] = rand() % 255;
+		rec_data->TestCols[3] = 255;
+	}
+	else {
+		// Clean possible garbage from controller
+		rec_data->TestCols[0] = abs(rec_data->TestCols[0]) % 255;
+		rec_data->TestCols[1] = abs(rec_data->TestCols[1]) % 255;
+		rec_data->TestCols[2] = abs(rec_data->TestCols[2]) % 255;
+		rec_data->TestCols[3] = abs(rec_data->TestCols[3]) % 255;
+	}
 
+	// Set tempTestColour
+	rec_data->tempTestCols[0] = (float)rec_data->TestCols[0] / 255;
+	rec_data->tempTestCols[1] = (float)rec_data->TestCols[1] / 255;
+	rec_data->tempTestCols[2] = (float)rec_data->TestCols[2] / 255;
+	rec_data->tempTestCols[3] = (float)rec_data->TestCols[3] / 255;
+
+	addUID(rec_data);
+
+	if (!deviceExist(rec_data->Mac)) {
+		advatek_manager::connectedDevices.emplace_back(rec_data);
+	} else {
+		clearDevice(rec_data);
+	}
 }
 
 void advatek_manager::process_opTestAnnounce(uint8_t * data) {
+	if (bTestAll) return;
 
 	uint8_t ProtVer;
 	memcpy(&ProtVer, data, sizeof(uint8_t));
@@ -603,16 +849,16 @@ void advatek_manager::process_opTestAnnounce(uint8_t * data) {
 
 	int deviceID = -1;
 
-	for (int d(0); d < advatek_manager::devices.size(); d++) {
+	for (int d(0); d < advatek_manager::connectedDevices.size(); d++) {
 		bool exist = true;
 		for (int i(0); i < 6; i++) {
-			if (advatek_manager::devices[d]->Mac[i] != Mac[i]) exist = false;
+			if (advatek_manager::connectedDevices[d]->Mac[i] != Mac[i]) exist = false;
 		}
 		if (exist) deviceID = d;
 	}
 
 	if (deviceID >= 0) {
-		auto device = advatek_manager::devices[deviceID];
+		auto device = advatek_manager::connectedDevices[deviceID];
 
 		memcpy(&device->TestMode, data, sizeof(uint8_t));
 		data += 1;
@@ -626,9 +872,7 @@ void advatek_manager::process_opTestAnnounce(uint8_t * data) {
 		memcpy(&device->TestPixelNum, data, sizeof(uint16_t));
 		data += 2;
 		bswap_16(device->TestPixelNum);
-
 	}
-
 	return;
 }
 
@@ -664,7 +908,7 @@ void advatek_manager::process_udp_message(uint8_t * data) {
 }
 
 void advatek_manager::auto_sequence_channels(int d) {
-	auto device = advatek_manager::devices[d];
+	auto device = advatek_manager::connectedDevices[d];
 
 	uint16_t startOutputUniv   = device->OutputUniv[0];
 	uint16_t startOutputChan   = device->OutputChan[0];
@@ -694,7 +938,7 @@ void advatek_manager::auto_sequence_channels(int d) {
 }
 
 void advatek_manager::process_simple_config(int d) {
-	auto device = advatek_manager::devices[d];
+	auto device = connectedDevices[d];
 
 	device->OutputNull[0] = 0;
 	device->OutputZig[0] = 0;
@@ -712,7 +956,7 @@ void advatek_manager::process_simple_config(int d) {
 		device->OutputPixels[output]   = device->OutputPixels[0];
 		device->OutputGrouping[output] = device->OutputGrouping[0];
 	}
-	advatek_manager::auto_sequence_channels(d);
+	auto_sequence_channels(d);
 	return;
 }
 
@@ -727,7 +971,7 @@ void advatek_manager::refreshAdaptors() {
     if (getifaddrs(&ifaddr) == -1)
     {
         perror("getifaddrs");
-        exit(EXIT_FAILURE);
+        exit(EXIT_FAILURE); 
     }
 
 
@@ -783,66 +1027,93 @@ void advatek_manager::refreshAdaptors() {
 	}
 	#endif
 
-	if (!networkAdaptors.empty()) {
-		currentAdaptor = 0;
-		m_pUdpClient = new UdpClient(networkAdaptors[currentAdaptor].c_str(), AdvPort);
-	} else {
-		advatek_manager::currentAdaptor = -1;
-	}
-
+	currentAdaptor = (networkAdaptors.empty()) ? -1 : 0;
+	setCurrentAdaptor(currentAdaptor);
 }
 
 void advatek_manager::setCurrentAdaptor(int adaptorIndex ) {
 	boost::system::error_code err;
 
-	if (m_pUdpClient)
+	if (m_pUdpClient) {
 		delete m_pUdpClient;
+		m_pUdpClient = nullptr;
+	}
 
-	m_pUdpClient = new UdpClient(networkAdaptors[adaptorIndex].c_str(), AdvPort);
+	if (adaptorIndex >= 0) {
+		m_pUdpClient = new UdpClient(networkAdaptors[adaptorIndex].c_str(), AdvPort);
+	}
 }
 
-std::string advatek_manager::importJSON(int d, std::string path, sImportOptions &importOptions) {
-	auto device = advatek_manager::devices[d];
+std::string advatek_manager::importJSON(sAdvatekDevice *device, boost::property_tree::ptree advatek_device, sImportOptions &importOptions) {
 	std::string s_hold;
-	pt::ptree root;
-
-	pt::read_json(path, root);
-	
 	std::stringstream report;
 
-	if (root.get<std::string>("Model").compare(std::string((char *)device->Model)) == 0) {
+	if (importOptions.init) {
+		SetValueFromJson(uint8_t, ProtVer);
+		SetValueFromJson(uint8_t, CurrentProtVer);
+		SetValueFromJson(uint8_t, ModelLength);
+		//SetValueFromJson(uint8_t, LenFirmware);
+		device->LenFirmware = 20;
+		if (device->Model) delete[] device->Model;
+		device->Model = new uint8_t[device->ModelLength + 1];
+		memset(device->Model, 0x00, sizeof(uint8_t) * (device->ModelLength + 1));
+		memcpy(device->Model, advatek_device.get<std::string>("Model").c_str(), sizeof(uint8_t) * device->ModelLength);
+		s_hold = advatek_device.get<std::string>("Mac");
+		load_macStr(s_hold, device->Mac);
+	}
+
+	if (advatek_device.get<std::string>("Model").compare(std::string((char *)device->Model)) == 0) {
 		report << "Done!\n";
-	} else {
+	}
+	else {
 		report << "Beware: Loaded data from ";
-		report << root.get<std::string>("Model");
+		report << advatek_device.get<std::string>("Model");
 		report << " to ";
 		report << device->Model;
 		report << "\n";
 	}
 
-	//root.get<std::string>("CurrentProtVer");
-	//root.get<std::string>("Mac");
-
-	if (importOptions.network) {
+	if (importOptions.network || importOptions.init) {
 
 		SetValueFromJson(uint8_t, DHCP);
 
-		s_hold = root.get<std::string>("StaticIP");
+		s_hold = advatek_device.get<std::string>("StaticIP");
 		load_ipStr(s_hold, device->StaticIP);
-		s_hold = root.get<std::string>("StaticSM");
+		s_hold = advatek_device.get<std::string>("StaticSM");
 		load_ipStr(s_hold, device->StaticSM);
 
 		report << "- Import Network Settings Succesfull.\n";
 	}
 
-	if (importOptions.ethernet_control) {
+	if (importOptions.ethernet_control || importOptions.init) {
 		bool go = EqualValueJson(uint8_t, NumOutputs);
-		if ( go ) {
+		if (go || importOptions.init) {
 			SetValueFromJson(uint8_t, HoldLastFrame);
 			SetValueFromJson(uint8_t, SimpleConfig);
 			SetValueFromJson(uint16_t, MaxPixPerOutput);
 			SetValueFromJson(uint8_t, NumOutputs);
+			if (importOptions.init) {
 
+				if (device->OutputPixels) delete[] device->OutputPixels;
+				if (device->OutputUniv) delete[] device->OutputUniv;
+				if (device->OutputChan) delete[] device->OutputChan;
+				if (device->OutputNull) delete[] device->OutputNull;
+				if (device->OutputZig) delete[] device->OutputZig;
+				if (device->OutputReverse) delete[] device->OutputReverse;
+				if (device->OutputColOrder) delete[] device->OutputColOrder;
+				if (device->OutputGrouping) delete[] device->OutputGrouping;
+				if (device->OutputBrightness) delete[] device->OutputBrightness;
+
+				device->OutputPixels = new uint16_t[device->NumOutputs];
+				device->OutputUniv = new uint16_t[device->NumOutputs];
+				device->OutputChan = new uint16_t[device->NumOutputs];
+				device->OutputNull = new uint8_t[device->NumOutputs];
+				device->OutputZig = new uint16_t[device->NumOutputs];
+				device->OutputReverse = new uint8_t[device->NumOutputs];
+				device->OutputColOrder = new uint8_t[device->NumOutputs];
+				device->OutputGrouping = new uint16_t[device->NumOutputs];
+				device->OutputBrightness = new uint8_t[device->NumOutputs];
+			}
 			SetChildIntValuesFromJson(OutputPixels);
 			SetChildIntValuesFromJson(OutputUniv);
 			SetChildIntValuesFromJson(OutputChan);
@@ -853,43 +1124,100 @@ std::string advatek_manager::importJSON(int d, std::string path, sImportOptions 
 			SetChildIntValuesFromJson(OutputGrouping);
 			SetChildIntValuesFromJson(OutputBrightness);
 			report << "- Import Ethernet Control Succesfull.\n";
-		} else {
+		}
+		else {
 			report << "- Import Ethernet Control Failed. (Output count does not match)\n";
 		}
 	}
 
-	if (importOptions.dmx_outputs) {
+	if (importOptions.dmx_outputs || importOptions.init) {
 		bool go = EqualValueJson(uint8_t, NumDMXOutputs);
-		if (go) {
-			SetValueFromJson(uint8_t, ProtocolsOnDmxOut);
-			SetChildIntValuesFromJson(DmxOutOn);
-			SetChildIntValuesFromJson(DmxOutUniv);
-			report << "- Import DMX Control Succesfull.\n";
+		if ( go || importOptions.init ) {
+			if (advatek_device.get<uint8_t>("NumDMXOutputs") == 0) {
+				report << "- Import DMX Control Failed. (No DMX outputs found)\n";
+			}
+			else {
+				if (importOptions.init) {
+					SetValueFromJson(uint8_t, NumDMXOutputs);
+
+					if (device->DmxOutOn) delete[] device->DmxOutOn;
+					if (device->DmxOutUniv) delete[] device->DmxOutUniv;
+					if (device->TempDmxOutOn) delete[] device->TempDmxOutOn;
+
+					device->DmxOutOn = new uint8_t[device->NumDMXOutputs];
+					device->DmxOutUniv = new uint16_t[device->NumDMXOutputs];
+					device->TempDmxOutOn = new bool[device->NumDMXOutputs];
+				}
+				SetValueFromJson(uint8_t, ProtocolsOnDmxOut);
+				SetChildIntValuesFromJson(DmxOutOn);
+				SetChildIntValuesFromJson(DmxOutUniv);
+				report << "- Import DMX Control Succesfull.\n";
+			}
 		} else {
 			report << "- Import DMX Control Failed. (Output count does not match)\n";
 		}
 	}
 
-	//SetValueFromJson(uint8_t, NumDrivers);
+	if (importOptions.led_settings || importOptions.init) {
+		bool go = EqualValueJson(uint8_t, NumDrivers);
+		if (go || importOptions.init) {
+			SetValueFromJson(uint8_t, NumDrivers);
 
-	if (importOptions.led_settings) {
-		SetChildIntValuesFromJson(DriverType);
-		SetChildIntValuesFromJson(DriverSpeed);
-		SetChildIntValuesFromJson(DriverExpandable);
-		//SetChildStringValuesFromJson(DriverNames);
+			if (device->DriverType) delete[] device->DriverType;
+			if (device->DriverSpeed) delete[] device->DriverSpeed;
+			if (device->DriverExpandable) delete[] device->DriverExpandable;
+			if (device->DriverNames) {
+				for (int i = 0; i < device->NumDrivers; i++) delete[] device->DriverNames[i];
+				delete[] device->DriverNames;
+			}
+			if (device->Firmware) delete[] device->Firmware;
 
-		SetValueFromJson(int, CurrentDriver);
-		SetValueFromJson(uint8_t, CurrentDriverType);
-		SetValueFromJson(int, CurrentDriverSpeed);
-		SetValueFromJson(uint8_t, CurrentDriverExpanded);
+			device->DriverType = new uint8_t[device->NumDrivers];
+			device->DriverSpeed = new uint8_t[device->NumDrivers];
+			device->DriverExpandable = new uint8_t[device->NumDrivers];
+			device->DriverNames = new char*[device->NumDrivers];
+			device->Firmware = new uint8_t[device->LenFirmware];
+
+			memset(device->Firmware, 0, sizeof(uint8_t)*device->LenFirmware);
+			char* tempFirmwareName = (char*)"Virtual";
+			memcpy(device->Firmware, tempFirmwareName, 12);
+			SetValueFromJson(uint8_t, DriverNameLength);
+			for (int i = 0; i < device->NumDrivers; i++) {
+				device->DriverNames[i] = new char[device->DriverNameLength + 1];
+				memset(device->DriverNames[i], 0, sizeof(char) * (device->DriverNameLength + 1));
+			}
+			SetValueFromJson(uint8_t, DriverNameLength);
+			for (pt::ptree::value_type &node : advatek_device.get_child("DriverNames"))
+			{
+				std::string sTempValue = node.second.data();
+				int index = std::stoi(node.first);
+				const char* sCStr = sTempValue.c_str();
+
+				memcpy(device->DriverNames[index], sCStr, sizeof(char) * device->DriverNameLength);
+			}
+			SetChildIntValuesFromJson(DriverType);
+			SetChildIntValuesFromJson(DriverSpeed);
+			SetChildIntValuesFromJson(DriverExpandable);
+
+			SetValueFromJson(int, CurrentDriver);
+			SetValueFromJson(uint8_t, CurrentDriverType);
+			SetValueFromJson(int, CurrentDriverSpeed);
+			SetValueFromJson(uint8_t, CurrentDriverExpanded);
+		} else {
+			report << "- Import LED Settings Failed. (Driver count does not match)\n";
+		}
 
 		SetChildIntValuesFromJson(Gamma);
+		device->Gammaf[0] = (float)device->Gamma[0] * 0.1;
+		device->Gammaf[1] = (float)device->Gamma[1] * 0.1;
+		device->Gammaf[2] = (float)device->Gamma[2] * 0.1;
+		device->Gammaf[3] = (float)device->Gamma[3] * 0.1;
 
 		report << "- Import LED Settings Succesfull.\n";
 	}
 
-	if (importOptions.nickname) {
-		s_hold = root.get<std::string>("Nickname");
+	if (importOptions.nickname || importOptions.init) {
+		s_hold = advatek_device.get<std::string>("Nickname");
 		strncpy(device->Nickname, s_hold.c_str(), 40);
 		report << "- Import Nickname Succesfull.\n";
 	}
@@ -898,35 +1226,67 @@ std::string advatek_manager::importJSON(int d, std::string path, sImportOptions 
 		SetValueFromJson(uint8_t, MaxTargetTemp);
 		report << "- Import Fan On Temp Succesfull.\n";
 	}
-	
+
 	return report.str();
 }
 
-void advatek_manager::exportJSON(int d, std::string path) {
-	auto device = advatek_manager::devices[d];
-	pt::ptree root;
+pt::ptree import_json_device;
+std::stringstream ss_import_json_device;
 
-	root.put("CurrentProtVer", device->CurrentProtVer);
-	root.put("Mac", macString(device->Mac));
-	root.put("DHCP", device->DHCP);
-	root.put("StaticIP", ipString(device->StaticIP));
-	root.put("StaticSM", ipString(device->StaticSM));
+std::string advatek_manager::importJSON(sAdvatekDevice *device, sImportOptions &importOptions) {
+	import_json_device.clear();
+	ss_import_json_device.str(std::string());
+	ss_import_json_device.clear();
+	if (importOptions.json.empty()) {
+		return "Error: No JSON data found.";
+	} else { // data
+		ss_import_json_device << importOptions.json;
+		pt::read_json(ss_import_json_device, import_json_device);
+	}
+	if (import_json_device.count("advatek_devices") > 0) {
+		return importJSON(device, import_json_device.get_child("advatek_devices").front().second, importOptions);
+	} else {
+		return importJSON(device, import_json_device, importOptions);
+	}
+}
 
-	root.put("Model", device->Model);
-	root.put("HoldLastFrame", device->HoldLastFrame);
-	root.put("SimpleConfig", device->SimpleConfig);
-	root.put("MaxPixPerOutput", device->MaxPixPerOutput);
-	root.put("NumOutputs", device->NumOutputs);
+void advatek_manager::getJSON(sAdvatekDevice *device, boost::property_tree::ptree &advatek_device) {
 
-	pt::ptree OutputPixels;
-	pt::ptree OutputUniv;
-	pt::ptree OutputChan;
-	pt::ptree OutputNull;
-	pt::ptree OutputZig;
-	pt::ptree OutputReverse;
-	pt::ptree OutputColOrder;
-	pt::ptree OutputGrouping;
-	pt::ptree OutputBrightness;
+	OutputPixels.clear();
+	OutputUniv.clear();
+	OutputChan.clear();
+	OutputNull.clear();
+	OutputZig.clear();
+	OutputReverse.clear();
+	OutputColOrder.clear();
+	OutputGrouping.clear();
+	OutputBrightness.clear();
+	DmxOutOn.clear();
+	DmxOutUniv.clear();
+	DriverType.clear();
+	DriverSpeed.clear();
+	DriverExpandable.clear();
+	DriverNames.clear();
+	Gamma.clear();
+
+	advatek_device.put("ProtVer", device->ProtVer);
+	advatek_device.put("CurrentProtVer", device->CurrentProtVer);
+	advatek_device.put("Mac", macString(device->Mac));
+	advatek_device.put("DHCP", device->DHCP);
+	advatek_device.put("StaticIP", ipString(device->StaticIP));
+	advatek_device.put("StaticSM", ipString(device->StaticSM));
+	advatek_device.put("CurrentIP", ipString(device->CurrentIP));
+	advatek_device.put("CurrentSM", ipString(device->CurrentSM));
+
+	advatek_device.put("ModelLength", device->ModelLength);
+	advatek_device.put("Model", device->Model);
+	advatek_device.put("Brand", device->Brand);
+
+	advatek_device.put("Protocol", device->Protocol);
+	advatek_device.put("HoldLastFrame", device->HoldLastFrame);
+	advatek_device.put("SimpleConfig", device->SimpleConfig);
+	advatek_device.put("MaxPixPerOutput", device->MaxPixPerOutput);
+	advatek_device.put("NumOutputs", device->NumOutputs);
 
 	for (int output = 0; output < device->NumOutputs; output++)
 	{
@@ -941,21 +1301,18 @@ void advatek_manager::exportJSON(int d, std::string path) {
 		OutputBrightness.put(std::to_string(output), std::to_string(device->OutputBrightness[output]));
 	}
 
-	root.add_child("OutputPixels", OutputPixels);
-	root.add_child("OutputUniv", OutputUniv);
-	root.add_child("OutputChan", OutputChan);
-	root.add_child("OutputNull", OutputNull);
-	root.add_child("OutputZig", OutputZig);
-	root.add_child("OutputReverse", OutputReverse);
-	root.add_child("OutputColOrder", OutputColOrder);
-	root.add_child("OutputGrouping", OutputGrouping);
-	root.add_child("OutputBrightness", OutputBrightness);
+	advatek_device.add_child("OutputPixels", OutputPixels);
+	advatek_device.add_child("OutputUniv", OutputUniv);
+	advatek_device.add_child("OutputChan", OutputChan);
+	advatek_device.add_child("OutputNull", OutputNull);
+	advatek_device.add_child("OutputZig", OutputZig);
+	advatek_device.add_child("OutputReverse", OutputReverse);
+	advatek_device.add_child("OutputColOrder", OutputColOrder);
+	advatek_device.add_child("OutputGrouping", OutputGrouping);
+	advatek_device.add_child("OutputBrightness", OutputBrightness);
 
-	//root.put("NumDMXOutputs", device->NumDMXOutputs);
-	root.put("ProtocolsOnDmxOut", device->ProtocolsOnDmxOut);
-
-	pt::ptree DmxOutOn;
-	pt::ptree DmxOutUniv;
+	advatek_device.put("NumDMXOutputs", device->NumDMXOutputs);
+	advatek_device.put("ProtocolsOnDmxOut", device->ProtocolsOnDmxOut);
 
 	for (int output = 0; output < device->NumDMXOutputs; output++)
 	{
@@ -963,15 +1320,11 @@ void advatek_manager::exportJSON(int d, std::string path) {
 		DmxOutUniv.put(std::to_string(output), std::to_string(device->DmxOutUniv[output]));
 	}
 
-	root.add_child("DmxOutOn", DmxOutOn);
-	root.add_child("DmxOutUniv", DmxOutUniv);
+	advatek_device.add_child("DmxOutOn", DmxOutOn);
+	advatek_device.add_child("DmxOutUniv", DmxOutUniv);
 
-	root.put("NumDrivers", device->NumDrivers);
-
-	pt::ptree DriverType;
-	pt::ptree DriverSpeed;
-	pt::ptree DriverExpandable;
-	pt::ptree DriverNames;
+	advatek_device.put("NumDrivers", device->NumDrivers);
+	advatek_device.put("DriverNameLength", device->DriverNameLength);
 
 	for (int output = 0; output < device->NumDrivers; output++)
 	{
@@ -981,56 +1334,116 @@ void advatek_manager::exportJSON(int d, std::string path) {
 		DriverNames.put(std::to_string(output), (device->DriverNames[output]));
 	}
 
-	root.add_child("DriverType", DriverType);
-	root.add_child("DriverSpeed", DriverSpeed);
-	root.add_child("DriverExpandable", DriverExpandable);
-	root.add_child("DriverNames", DriverNames);
+	advatek_device.add_child("DriverType", DriverType);
+	advatek_device.add_child("DriverSpeed", DriverSpeed);
+	advatek_device.add_child("DriverExpandable", DriverExpandable);
+	advatek_device.add_child("DriverNames", DriverNames);
 
-	root.put("CurrentDriver", device->CurrentDriver);
-	root.put("CurrentDriverType", device->CurrentDriverType);
-	root.put("CurrentDriverSpeed", device->CurrentDriverSpeed);
-	root.put("CurrentDriverExpanded", device->CurrentDriverExpanded);
-
-	pt::ptree Gamma;
+	advatek_device.put("CurrentDriver", device->CurrentDriver);
+	advatek_device.put("CurrentDriverType", device->CurrentDriverType);
+	advatek_device.put("CurrentDriverSpeed", device->CurrentDriverSpeed);
+	advatek_device.put("CurrentDriverExpanded", device->CurrentDriverExpanded);
 
 	for (int c = 0; c < 4; c++)
 	{
 		Gamma.put(std::to_string(c), std::to_string(device->Gamma[c]));
 	}
 
-	root.add_child("Gamma", Gamma);
+	advatek_device.add_child("Gamma", Gamma);
 
-	root.put("Nickname", device->Nickname);
-	root.put("MaxTargetTemp", device->MaxTargetTemp);
+	advatek_device.put("Nickname", device->Nickname);
+	advatek_device.put("MaxTargetTemp", device->MaxTargetTemp);
+	advatek_device.put("NumBanks", device->NumBanks);
+}
 
-	//pt::write_json(std::cout, root);
+pt::ptree tree_getJSON;
+void advatek_manager::getJSON(sAdvatekDevice *fromDevice, sImportOptions &importOptions) {
+	tree_getJSON.clear();
+	getJSON(fromDevice, tree_getJSON);
+
+	std::stringstream jsonStringStream;
+	write_json(jsonStringStream, tree_getJSON);
+
+	importOptions.json = jsonStringStream.str();
+}
+
+pt::ptree tree_exportJSON_device;
+pt::ptree tree_exportJSON_devices;
+pt::ptree tree_exportJSON_devicesArr;
+
+void advatek_manager::exportJSON(std::vector<sAdvatekDevice*> &devices, std::string path) {
+	tree_exportJSON_devices.clear();
+	tree_exportJSON_devicesArr.clear();
+
+	for (auto & device : devices) {
+		tree_exportJSON_device.clear();
+		getJSON(device, tree_exportJSON_device);
+		tree_exportJSON_devicesArr.push_back(std::make_pair("", tree_exportJSON_device));
+	}
+
+	tree_exportJSON_devices.add_child("advatek_devices", tree_exportJSON_devicesArr);
+
+	std::ofstream outfile; // CHECK
+	outfile.open(path, std::ios::out | std::ios::trunc);
+	pt::write_json(outfile, tree_exportJSON_devices);
+	outfile.close();
+}
+
+void advatek_manager::exportJSON(sAdvatekDevice *device, std::string path) {
+	tree_exportJSON_devices.clear();
+	tree_exportJSON_device.clear();
+	tree_exportJSON_devicesArr.clear();
+
+	getJSON(device, tree_exportJSON_device);
+
+	tree_exportJSON_devicesArr.push_back(std::make_pair("", tree_exportJSON_device));
+	tree_exportJSON_devices.add_child("advatek_devices", tree_exportJSON_devicesArr);
 
 	std::ofstream outfile;
 	outfile.open(path, std::ios::out | std::ios::trunc);
-	//outfile << pt::write_json(std::cout, root) << endl;
-	pt::write_json(outfile, root);
-	outfile.close(); // Closes file
-
+	pt::write_json(outfile, tree_exportJSON_devices);
+	outfile.close();
 }
 
-void load_ipStr(std::string ipStr, uint8_t *address)
-{
-	int ip1, ip2, ip3, ip4;
-	sscanf(ipStr.c_str(), "%i.%i.%i.%i", &ip1, &ip2, &ip3, &ip4);
-	address[0] = ip1;
-	address[1] = ip2;
-	address[2] = ip3;
-	address[3] = ip4;
+std::vector<pt::ptree> checkDevices;
+
+std::string advatek_manager::validateJSON(boost::property_tree::ptree advatek_devices) {
+	for (pt::ptree &e : checkDevices) {
+		e.clear();
+	}
+
+	checkDevices.clear();
+
+	if (advatek_devices.count("advatek_devices") > 0) {
+		for (auto &json_device : advatek_devices.get_child("advatek_devices")) {
+			checkDevices.emplace_back(json_device.second);
+		}
+	} else { // single device to be checked
+		checkDevices.emplace_back(advatek_devices);
+	}
+	
+	// OK let's check these monsters
+	for (auto &device : checkDevices) {
+		boost::optional< pt::ptree& > child = device.get_child_optional("ProtVer");
+		if (!child)
+		{
+			return "Not a valid JSON";
+		}
+	}
+
+	return "";
 }
 
-void load_macStr(std::string macStr, uint8_t *address)
-{
-	int mac1, mac2, mac3, mac4, mac5, mac6;
-	sscanf(macStr.c_str(), "%02x:%02x:%02x:%02x:%02x:%02x", &mac1, &mac2, &mac3, &mac4, &mac5, &mac6);
-	address[0] = mac1;
-	address[1] = mac2;
-	address[2] = mac3;
-	address[3] = mac4;
-	address[4] = mac5;
-	address[5] = mac6;
+void advatek_manager::copyDevice(sAdvatekDevice *fromDevice, sAdvatekDevice *toDevice, bool initialise) {
+	pt::ptree advatek_device;
+	getJSON(fromDevice, advatek_device);
+
+	std::stringstream jsonStringStream;
+	write_json(jsonStringStream, advatek_device);
+
+	sImportOptions importOptions = sImportOptions();
+	importOptions.json = jsonStringStream.str();
+	importOptions.init = initialise;
+
+	importJSON(toDevice, importOptions);
 }

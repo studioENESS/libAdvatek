@@ -1,18 +1,20 @@
 #include "udpclient.h"
 #include <iostream>
+#include <boost/asio.hpp>
 typedef boost::asio::detail::socket_option::integer<SOL_SOCKET, SO_RCVTIMEO> rcv_timeout_option; //somewhere in your headers to be used everywhere you need it
 //...
+using boost::asio::ip::udp;
 
 UdpClient::UdpClient(std::string host, unsigned short server_port, unsigned short local_port)
-    : recvsocket(io_service, udp::endpoint(udp::v4(), server_port))
-    , socket(io_service, udp::endpoint(udp::v4(), 0))
+    : recvsocket(_io_service, udp::endpoint(udp::v4(), server_port))
+    , socket(_io_service, udp::endpoint(udp::v4(), 0))
     , m_ipAddress(host)
     , m_serverport(server_port)
 {
-    udp::resolver resolver(io_service);
+    udp::resolver resolver(_io_service);
     udp::resolver::query query(udp::v4(), host, std::to_string(2143));
     server_endpoint = *resolver.resolve(query);
-    socket = boost::asio::ip::udp::socket(io_context, server_endpoint.protocol());
+    socket = boost::asio::ip::udp::socket(_io_context, server_endpoint.protocol());
 
     socket.set_option(boost::asio::ip::udp::socket::reuse_address(true));
     recvsocket.set_option(boost::asio::ip::udp::socket::reuse_address(true));
@@ -27,7 +29,7 @@ UdpClient::UdpClient(std::string host, unsigned short server_port, unsigned shor
 UdpClient::~UdpClient()
 {
     socket.close();
-    io_service.stop();
+    _io_service.stop();
     service_thread.join();
 
 }
