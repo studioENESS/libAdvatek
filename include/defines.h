@@ -142,6 +142,9 @@ typedef struct tAdvatekDevice {
 	bool testModeCyclePixels = false;
 	bool testModeEnessColourOuputs = false;
 	size_t uid;
+
+	int MinUniverse() const;
+	int MaxUniverse() const;
 } sAdvatekDevice;
 
 typedef struct tImportOptions {
