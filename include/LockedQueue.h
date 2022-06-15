@@ -5,7 +5,6 @@
 #include <queue>
 #include <list>
 
-
 	// Simple mutex-guarded queue
 	template<typename _T> class LockedQueue
 	{

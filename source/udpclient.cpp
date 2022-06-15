@@ -1,25 +1,21 @@
 #include "udpclient.h"
 #include <iostream>
-#include <boost/asio.hpp>
-typedef boost::asio::detail::socket_option::integer<SOL_SOCKET, SO_RCVTIMEO> rcv_timeout_option; //somewhere in your headers to be used everywhere you need it
-//...
-using boost::asio::ip::udp;
+
+typedef boost::asio::detail::socket_option::integer<SOL_SOCKET, SO_RCVTIMEO> rcv_timeout_option;
 
 UdpClient::UdpClient(std::string host, unsigned short server_port, unsigned short local_port)
-    : recvsocket(_io_service, udp::endpoint(udp::v4(), server_port))
-    , socket(_io_service, udp::endpoint(udp::v4(), 0))
+    : recvsocket(io_context, udp::endpoint(udp::v4(), server_port))
+    , socket(io_context, udp::endpoint(udp::v4(), 0))
     , m_ipAddress(host)
     , m_serverport(server_port)
 {
-    udp::resolver resolver(_io_service);
+    udp::resolver resolver(io_context);
     udp::resolver::query query(udp::v4(), host, std::to_string(2143));
     server_endpoint = *resolver.resolve(query);
-    socket = boost::asio::ip::udp::socket(_io_context, server_endpoint.protocol());
+    socket = boost::asio::ip::udp::socket(io_context, server_endpoint.protocol());
 
     socket.set_option(boost::asio::ip::udp::socket::reuse_address(true));
     recvsocket.set_option(boost::asio::ip::udp::socket::reuse_address(true));
-    //socket.set_option(boost::asio::ip::udp::socket::{ 200 });
-
 
     socket.bind(server_endpoint);
 
@@ -29,7 +25,7 @@ UdpClient::UdpClient(std::string host, unsigned short server_port, unsigned shor
 UdpClient::~UdpClient()
 {
     socket.close();
-    _io_service.stop();
+    io_context.stop();
     service_thread.join();
 
 }
@@ -39,6 +35,7 @@ bool UdpClient::bind()
     bool bOk = true;
     return bOk;
 }
+
 bool UdpClient::HasMessages()
 {
     return !incomingMessages.empty();
@@ -46,43 +43,44 @@ bool UdpClient::HasMessages()
 
 void UdpClient::Send(const std::vector<uint8_t>& message, std::string& s_adr, bool b_broadcast, int port)
 {
-    boost::asio::ip::address_v4 local_interface = boost::asio::ip::address_v4::from_string(m_ipAddress.c_str());
-    boost::asio::ip::multicast::outbound_interface option(local_interface);
-    socket.set_option(option);
+    try {
+        boost::asio::ip::multicast::outbound_interface option(boost::asio::ip::address_v4::from_string(m_ipAddress.c_str()));
+        socket.set_option(option);
 
-    socket.set_option(boost::asio::socket_base::broadcast(b_broadcast));
-    //remote_endpoint = boost::asio::ip::udp::endpoint(boost::asio::ip::address::from_string(s_adr.c_str()), m_serverport);
-    boost::asio::ip::udp::endpoint sendpoint(boost::asio::ip::address::from_string(s_adr.c_str()), port);
+        socket.set_option(boost::asio::socket_base::broadcast(b_broadcast));
 
-    //sock.send_to(boost::asio::buffer(message), sendpoint);
+        boost::asio::ip::udp::endpoint sendpoint(boost::asio::ip::address::from_string(s_adr.c_str()), port);
 
-    socket.send_to(boost::asio::buffer(message), sendpoint);
-    //start_receive();
+        socket.send_to(boost::asio::buffer(message), sendpoint);
+    }
+    catch (const boost::system::system_error& ex)
+    {
+        std::cout << "Failed to send from socket ... " << std::endl;
+        std::cout << ex.what() << std::endl;
+    }
 }
 
 std::vector<uint8_t> UdpClient::PopMessage()
 {
     if (incomingMessages.empty())
-        throw std::logic_error("No messages to pop");
+        throw std::logic_error("No messages to pop ... ");
     return incomingMessages.pop();
 }
 
 void UdpClient::run_service()
 {
-    while(socket.is_open())
+    while (socket.is_open())
         start_receive();
 }
 
 void UdpClient::start_receive()
 {
-    try
-    {
-        
-		size_t availBytes = recvsocket.available();
+    try {
+        size_t availBytes = recvsocket.available();
         if (availBytes > 0)
         {
             uint8_t buffer[100000];
-            std::size_t bytes_transferred = recvsocket.receive_from(boost::asio::buffer(buffer,10000), remote_endpoint);
+            std::size_t bytes_transferred = recvsocket.receive_from(boost::asio::buffer(buffer, 10000), remote_endpoint);
             if (bytes_transferred > 1)
             {
                 std::vector<uint8_t> message;
@@ -107,13 +105,11 @@ void UdpClient::handle_receive(const std::error_code& error, std::size_t bytes_t
     {
         std::vector<uint8_t> message(recv_buffer.data(), recv_buffer.data() + bytes_transferred);
         incomingMessages.push(message);
-        //statistics.RegisterReceivedMessage(bytes_transferred);
     }
     else
     {
-        //Log::Error("Client::handle_receive:", error);
+        std::cout << "UdpClient::handle_receive: " << error.message() << std::endl;
     }
 
     start_receive();
 }
-

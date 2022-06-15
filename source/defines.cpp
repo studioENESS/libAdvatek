@@ -1,16 +1,15 @@
 #include "defines.h"
 
+const char* ExportAllTypes[3] = {
+		"JSON",
+		"Virtual Devices (Add)",
+		"Virtual Devices (Clean)"
+};
+
 const char* SyncTypes[3] = {
 		"Match Static IP",
 		"Match Nickname",
 		"Match MAC addres"
-};
-
-const char* SortTypes[4] = {
-		"Sort ...",
-		"Current IP",
-		"Static IP",
-		"Nickname"
 };
 
 const char* DriverTypes[3] = {
@@ -73,7 +72,7 @@ const char* RGBW_Order[24] = {
    "W-B-G-R"
 };
 
-std::string macString(uint8_t * address) {
+std::string macString(uint8_t* address) {
 	std::stringstream ss;
 
 	for (int i(0); i < 6; i++) {
@@ -84,7 +83,7 @@ std::string macString(uint8_t * address) {
 	return ss.str();
 }
 
-std::string ipString(uint8_t * address) {
+std::string ipString(uint8_t* address) {
 	std::stringstream ss;
 
 	for (int i(0); i < 4; i++) {
@@ -104,7 +103,7 @@ std::vector<std::string> splitter(std::string in_pattern, std::string& content) 
 	return split_content;
 }
 
-void insertSwapped16(std::vector<uint8_t> &dest, uint16_t* pData, int32_t size)
+void insertSwapped16(std::vector<uint8_t>& dest, uint16_t* pData, int32_t size)
 {
 	for (int i = 0; i < size; i++)
 	{
@@ -114,7 +113,7 @@ void insertSwapped16(std::vector<uint8_t> &dest, uint16_t* pData, int32_t size)
 	}
 }
 
-void setEndUniverseChannel(uint16_t startUniverse, uint16_t startChannel, uint16_t pixelCount, uint16_t outputGrouping, uint16_t &endUniverse, uint16_t &endChannel) {
+void setEndUniverseChannel(uint16_t startUniverse, uint16_t startChannel, uint16_t pixelCount, uint16_t outputGrouping, uint16_t& endUniverse, uint16_t& endChannel) {
 	pixelCount *= outputGrouping;
 	uint16_t pixelChannels = (3 * pixelCount); // R-G-B data
 	uint16_t pixelUniverses = ((float)(startChannel + pixelChannels) / 510.f);
@@ -123,7 +122,7 @@ void setEndUniverseChannel(uint16_t startUniverse, uint16_t startChannel, uint16
 	endChannel = (startChannel + pixelChannels - 1) % 510;
 }
 
-void load_ipStr(std::string ipStr, uint8_t *address)
+void load_ipStr(std::string ipStr, uint8_t* address)
 {
 	int ip1, ip2, ip3, ip4;
 	sscanf(ipStr.c_str(), "%i.%i.%i.%i", &ip1, &ip2, &ip3, &ip4);
@@ -133,7 +132,7 @@ void load_ipStr(std::string ipStr, uint8_t *address)
 	address[3] = ip4;
 }
 
-void load_macStr(std::string macStr, uint8_t *address)
+void load_macStr(std::string macStr, uint8_t* address)
 {
 	int mac1, mac2, mac3, mac4, mac5, mac6;
 	sscanf(macStr.c_str(), "%02x:%02x:%02x:%02x:%02x:%02x", &mac1, &mac2, &mac3, &mac4, &mac5, &mac6);
@@ -148,7 +147,7 @@ void load_macStr(std::string macStr, uint8_t *address)
 int sAdvatekDevice::MinUniverse() const
 {
 	int32_t iMin = INT32_MAX;
-	for (int i=0; i<this->NumOutputs; i++)
+	for (int i = 0; i < this->NumOutputs; i++)
 	{
 		iMin = std::min((int)this->OutputUniv[i], iMin);
 	}

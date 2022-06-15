@@ -1,7 +1,5 @@
-# ProjectName
+# libAdvatek
 
-> XXXX Client
-
-A template for our repositories that include our standard ignore etc.
+A C++ Library to manage Advatek Pixel Controllers.
 
 ![preview](img/eness_logo.png)

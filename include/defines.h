@@ -31,21 +31,21 @@
 
 #define bswap_16(x) x=((((x) >> 8) & 0xff) | (((x) & 0xff) << 8))
 
-#define EqualValueJson(type, atr) (device->atr == advatek_device.get<type>(#atr));
-#define SetValueFromJson(type, atr) device->atr = advatek_device.get<type>(#atr);
+#define EqualValueJson(type, atr) (device->atr == json_device.get<type>(#atr));
+#define SetValueFromJson(type, atr) device->atr = json_device.get<type>(#atr);
 #define SetChildIntValuesFromJson(atr) \
-	for (pt::ptree::value_type &node : advatek_device.get_child(#atr)) { \
+	for (boost::property_tree::ptree::value_type &node : json_device.get_child(#atr)) { \
 	 device->atr[std::stoi(node.first)] = std::stoi(node.second.data()); }
 #define SetChildFloatValuesFromJson(atr) \
-	for (pt::ptree::value_type &node : advatek_device.get_child(#atr)) { \
+	for (boost::property_tree::ptree::value_type &node : json_device.get_child(#atr)) { \
 	 device->atr[std::stoi(node.first)] = std::stof(node.second.data()); }
 #define SetChildStringValuesFromJson(atr) \
-	for (pt::ptree::value_type &node : advatek_device.get_child(#atr)) { \
+	for (boost::property_tree::ptree::value_type &node : json_device.get_child(#atr)) { \
 	std::string sTempValue = node.second.data(); \\
 	 device->atr[std::stoi(node.first)] = sTempValue.c_str(); }
 
+extern const char* ExportAllTypes[3];
 extern const char* SyncTypes[3];
-extern const char* SortTypes[4];
 extern const char* RGBW_Order[24];
 extern const char* DriverTypes[3];
 extern const char* DriverSpeeds[5];
@@ -70,7 +70,7 @@ enum ETestPattern
 	ETP_PIXELS
 };
 
-typedef struct tAdvatekDevice {
+typedef struct sAdvatekDevice {
 	/*tAdvatekDevice(){
 		constructor?
 	}*/
@@ -119,6 +119,7 @@ typedef struct tAdvatekDevice {
 	uint8_t* DriverSpeed;//[NumDrivers]; // 0 = N/A, 1 = slow only, 2 = fast only, 3 = either, 4 = adjustable clock 0.4 - 2.9MHz(12 step)
 	uint8_t* DriverExpandable;// [NumDrivers]; // 0 = Normal mode only, 1 = capable of expanded mode
 	char** DriverNames;// [NumDrivers][LENGTH_DRIVER_STRINGS]; // Null terminated strings of driver types
+	std::vector<std::pair<int, char*>> DriversSorted;
 
 	int CurrentDriver; // Current pixel protocol selection (index)
 	uint8_t CurrentDriverType; // RGB = 0, RGBW = 1
@@ -135,6 +136,7 @@ typedef struct tAdvatekDevice {
 	int TestMode; // Current test mode program (0 = off/live data)
 	int TestCols[4] = { 0 };
 	float tempTestCols[4] = { 0 };
+	float idCol[3] = { 0.6f, 0.6f, 0.6f };
 	uint8_t TestOutputNum;
 	uint16_t TestPixelNum;
 	int* TestCycleCols; //[NumOutputs]
@@ -142,12 +144,43 @@ typedef struct tAdvatekDevice {
 	bool testModeCyclePixels = false;
 	bool testModeEnessColourOuputs = false;
 	size_t uid;
+	int openTab = 0;
+	bool autoChannels = false;
 
 	int MinUniverse() const;
 	int MaxUniverse() const;
-} sAdvatekDevice;
 
-typedef struct tImportOptions {
+	~sAdvatekDevice() {
+		if (Model) delete Model;
+		if (Firmware) delete Firmware;
+		if (OutputPixels) delete[] OutputPixels;
+		if (OutputUniv) delete[] OutputUniv;
+		if (OutputChan) delete[] OutputChan;
+		if (OutputNull) delete[] OutputNull;
+		if (OutputZig) delete[] OutputZig;
+		if (OutputReverse) delete[] OutputReverse;
+		if (OutputColOrder) delete[] OutputColOrder;
+		if (OutputGrouping) delete[] OutputGrouping;
+		if (OutputBrightness) delete[] OutputBrightness;
+		if (DmxOutOn) delete[] DmxOutOn;
+		if (TempDmxOutOn) delete[] TempDmxOutOn;
+		if (DmxOutUniv) delete[] DmxOutUniv;
+		if (DriverType) delete[] DriverType;
+		if (DriverSpeed) delete[] DriverSpeed;
+		if (DriverExpandable) delete[] DriverExpandable;
+		if (DriverNames)
+		{
+			for (int i = 0; i < NumDrivers; i++)
+				delete[] DriverNames[i];
+
+			delete[] DriverNames;
+
+		}
+		if (VoltageBanks) delete[] VoltageBanks;
+	}
+};
+
+typedef struct sImportOptions {
 	bool userSet = false;
 	std::string json = "";
 	bool init = false;
@@ -158,15 +191,15 @@ typedef struct tImportOptions {
 	bool nickname = true;
 	bool fan_on_temp = true;
 	bool returnResult = true;
-} sImportOptions;
+};
 
-std::string macString(uint8_t * address);
-std::string ipString(uint8_t * address);
+std::string macString(uint8_t* address);
+std::string ipString(uint8_t* address);
 
 std::vector<std::string> splitter(std::string in_pattern, std::string& content);
 
-void insertSwapped16(std::vector<uint8_t> &dest, uint16_t* pData, int32_t size);
+void insertSwapped16(std::vector<uint8_t>& dest, uint16_t* pData, int32_t size);
 
-void setEndUniverseChannel(uint16_t startUniverse, uint16_t startChannel, uint16_t pixelCount, uint16_t outputGrouping, uint16_t &endUniverse, uint16_t &endChannel);
-void load_ipStr(std::string ipStr, uint8_t *address);
-void load_macStr(std::string macStr, uint8_t *address);
+void setEndUniverseChannel(uint16_t startUniverse, uint16_t startChannel, uint16_t pixelCount, uint16_t outputGrouping, uint16_t& endUniverse, uint16_t& endChannel);
+void load_ipStr(std::string ipStr, uint8_t* address);
+void load_macStr(std::string macStr, uint8_t* address);

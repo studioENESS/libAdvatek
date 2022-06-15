@@ -9,7 +9,7 @@
 
 static const int NetworkBufferSize = 4096;
 using boost::asio::ip::udp;
-class IClient 
+class IClient
 {
 public:
 	virtual ~IClient() {};
@@ -19,7 +19,6 @@ public:
 	virtual std::vector<uint8_t> PopMessage() = 0;
 };
 
-
 class UdpClient : public IClient
 {
 
@@ -28,7 +27,7 @@ public:
 	virtual ~UdpClient() override;
 	virtual bool bind() override;
 	virtual bool HasMessages() override;
-	virtual void Send(const std::vector<uint8_t>& message, std::string& s_adr, bool b_broadcast, int port = 49150) override;
+	virtual void Send(const std::vector<uint8_t>& message, std::string& s_adr, bool b_broadcast, int port = 49150);
 	virtual std::vector<uint8_t> PopMessage() override;
 protected:
 	void run_service();
@@ -39,8 +38,7 @@ protected:
 private:
 	std::string m_ipAddress;
 	unsigned short m_serverport;
-	boost::asio::io_service _io_service;
-	boost::asio::io_service _io_context;
+	boost::asio::io_context io_context;
 	udp::socket socket, recvsocket;
 	udp::endpoint server_endpoint;
 	udp::endpoint remote_endpoint;

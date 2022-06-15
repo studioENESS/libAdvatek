@@ -15,7 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\source\advatek_assistor.cpp">
+    <ClCompile Include="..\source\advatek_manager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\source\udpclient.cpp">
@@ -26,7 +26,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\include\advatek_assistor.h">
+    <ClInclude Include="..\include\advatek_manager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\include\LockedQueue.h">
