@@ -67,9 +67,6 @@ public:
 	static bool compareCurrentIP(sAdvatekDevice* device1, sAdvatekDevice* device2);
 	static bool compareNickname(sAdvatekDevice* device1, sAdvatekDevice* device2);
 
-	std::string macStr(uint8_t* address);
-	std::string ipStr(uint8_t* address);
-
 	std::vector <std::string> networkAdaptors;
 	int currentAdaptor = -1;
 	size_t getConnectedDeviceIndex(std::string mac);

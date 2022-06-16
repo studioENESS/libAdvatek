@@ -31,14 +31,14 @@ bool advatek_manager::compareModel(sAdvatekDevice* device1, sAdvatekDevice* devi
 
 bool advatek_manager::compareStaticIP(sAdvatekDevice* device1, sAdvatekDevice* device2)
 {
-	int result = ipString(device1->StaticIP).compare(ipString(device2->StaticIP));
+	int result = ipStr(device1->StaticIP).compare(ipStr(device2->StaticIP));
 	if (result == 0) return compareModel(device1, device2);
 	return (result < 0);
 }
 
 bool advatek_manager::compareCurrentIP(sAdvatekDevice* device1, sAdvatekDevice* device2)
 {
-	int result = ipString(device1->CurrentIP).compare(ipString(device2->CurrentIP));
+	int result = ipStr(device1->CurrentIP).compare(ipStr(device2->CurrentIP));
 	if (result == 0) return compareStaticIP(device1, device2);
 	return (result < 0);
 }
@@ -79,7 +79,7 @@ bool advatek_manager::ipInRange(std::string ipStr, sAdvatekDevice* device) {
 
 size_t advatek_manager::getConnectedDeviceIndex(std::string mac) {
 	for (size_t index = 0; index < connectedDevices.size(); ++index) {
-		if (macString(connectedDevices[index]->Mac) == mac) return index;
+		if (macStr(connectedDevices[index]->Mac) == mac) return index;
 	}
 	return -1;
 }
@@ -94,14 +94,14 @@ int advatek_manager::getDriverSortedIndex(sAdvatekDevice* device) {
 
 sAdvatekDevice* advatek_manager::getConnectedDevice(std::string mac) {
 	for (size_t index = 0; index < connectedDevices.size(); ++index) {
-		if (macString(connectedDevices[index]->Mac) == mac) return connectedDevices[index];
+		if (macStr(connectedDevices[index]->Mac) == mac) return connectedDevices[index];
 	}
 	return NULL;
 }
 
 void advatek_manager::removeConnectedDevice(sAdvatekDevice* device) {
 	if (device == NULL) return;
-	int deviceIndex = getConnectedDeviceIndex(macString(device->Mac));
+	int deviceIndex = getConnectedDeviceIndex(macStr(device->Mac));
 	if (deviceIndex < 0) return;
 	if (device) delete device;
 	connectedDevices.erase(connectedDevices.begin() + deviceIndex);
@@ -110,8 +110,8 @@ void advatek_manager::removeConnectedDevice(sAdvatekDevice* device) {
 bool advatek_manager::sameNetworkSettings(sAdvatekDevice* fromDevice, sAdvatekDevice* toDevice) {
 	bool same = true;
 
-	if (ipString(toDevice->StaticIP) != ipString(fromDevice->StaticIP)) same = false;
-	if (ipString(toDevice->StaticSM) != ipString(fromDevice->StaticSM)) same = false;
+	if (ipStr(toDevice->StaticIP) != ipStr(fromDevice->StaticIP)) same = false;
+	if (ipStr(toDevice->StaticSM) != ipStr(fromDevice->StaticSM)) same = false;
 	if (toDevice->DHCP != fromDevice->DHCP) same = false;
 
 	return same;
@@ -226,7 +226,7 @@ void advatek_manager::identifyDevice(int d, uint8_t duration) {
 	idTape.insert(idTape.end(), device->Mac, device->Mac + 6);
 	idTape.push_back(duration);
 
-	unicast_udp_message(ipString(device->CurrentIP), idTape);
+	unicast_udp_message(ipStr(device->CurrentIP), idTape);
 }
 
 void advatek_manager::copyToMemoryDevice(sAdvatekDevice* fromDevice) {
@@ -285,7 +285,7 @@ void advatek_manager::addUID(sAdvatekDevice* device) {
 	std::hash<std::string> hasher;
 	float LO = 0.399;
 	float HI = 0.999;
-	device->uid = hasher(macString(device->Mac).append(std::to_string(rand())));
+	device->uid = hasher(macStr(device->Mac).append(std::to_string(rand())));
 	device->idCol[0] = LO + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (HI - LO)));
 }
 
@@ -302,7 +302,7 @@ std::vector<sAdvatekDevice*> advatek_manager::getDevicesWithStaticIP(std::vector
 	std::vector<sAdvatekDevice*> matchedDevices;
 
 	for (int d(0); d < devices.size(); d++) {
-		if (ipString(devices[d]->StaticIP) == ipstr) {
+		if (ipStr(devices[d]->StaticIP) == ipstr) {
 			matchedDevices.emplace_back(devices[d]);
 		}
 	}
@@ -326,7 +326,7 @@ std::vector<sAdvatekDevice*> advatek_manager::getDevicesWithMac(std::vector<sAdv
 	std::vector<sAdvatekDevice*> matchedDevices;
 
 	for (int d(0); d < devices.size(); d++) {
-		if (macString(devices[d]->Mac) == mac) {
+		if (macStr(devices[d]->Mac) == mac) {
 			matchedDevices.emplace_back(devices[d]);
 		}
 	}
@@ -396,7 +396,7 @@ void advatek_manager::updateConnectedDevice(sAdvatekDevice* fromDevice, sAdvatek
 
 	dataTape.push_back(fromDevice->MaxTargetTemp);
 
-	unicast_udp_message(ipString(connectedDevice->CurrentIP), dataTape);
+	unicast_udp_message(ipStr(connectedDevice->CurrentIP), dataTape);
 	removeConnectedDevice(connectedDevice);
 }
 
@@ -443,7 +443,7 @@ void advatek_manager::setTest(sAdvatekDevice* device) {
 			for (int mac = 0; mac < 6; mac++)
 				testTape[12 + mac] = adevice->Mac[mac];
 
-			unicast_udp_message(ipString(adevice->CurrentIP), testTape);
+			unicast_udp_message(ipStr(adevice->CurrentIP), testTape);
 		}
 	}
 	else {
@@ -474,7 +474,7 @@ void advatek_manager::setTest(sAdvatekDevice* device) {
 		testTape.push_back((uint8_t)(device->TestPixelNum >> 8));
 		testTape.push_back((uint8_t)device->TestPixelNum);
 
-		unicast_udp_message(ipString(device->CurrentIP), testTape);
+		unicast_udp_message(ipStr(device->CurrentIP), testTape);
 	}
 }
 
@@ -1276,12 +1276,12 @@ void advatek_manager::getJSON(sAdvatekDevice* device, boost::property_tree::ptre
 	JSONdevice.put("ProtVer", device->ProtVer);
 	//JSONdevice.put("HwRev", device->HwRev);
 	JSONdevice.put("CurrentProtVer", device->CurrentProtVer);
-	JSONdevice.put("Mac", macString(device->Mac));
+	JSONdevice.put("Mac", macStr(device->Mac));
 	JSONdevice.put("DHCP", device->DHCP);
-	JSONdevice.put("StaticIP", ipString(device->StaticIP));
-	JSONdevice.put("StaticSM", ipString(device->StaticSM));
-	JSONdevice.put("CurrentIP", ipString(device->CurrentIP));
-	JSONdevice.put("CurrentSM", ipString(device->CurrentSM));
+	JSONdevice.put("StaticIP", ipStr(device->StaticIP));
+	JSONdevice.put("StaticSM", ipStr(device->StaticSM));
+	JSONdevice.put("CurrentIP", ipStr(device->CurrentIP));
+	JSONdevice.put("CurrentSM", ipStr(device->CurrentSM));
 
 	JSONdevice.put("ModelLength", device->ModelLength);
 	JSONdevice.put("Model", device->Model);

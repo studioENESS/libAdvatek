@@ -72,7 +72,7 @@ const char* RGBW_Order[24] = {
    "W-B-G-R"
 };
 
-std::string macString(uint8_t* address) {
+std::string macStr(uint8_t* address) {
 	std::stringstream ss;
 
 	for (int i(0); i < 6; i++) {
@@ -83,7 +83,7 @@ std::string macString(uint8_t* address) {
 	return ss.str();
 }
 
-std::string ipString(uint8_t* address) {
+std::string ipStr(uint8_t* address) {
 	std::stringstream ss;
 
 	for (int i(0); i < 4; i++) {
