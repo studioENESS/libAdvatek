@@ -191,7 +191,7 @@ void advatek_manager::send_udp_message(std::string ip_address, int port, bool b_
 {
 	if (m_pUdpClient)
 	{
-		m_pUdpClient->Send(message, ip_address, b_broadcast);
+		m_pUdpClient->Send(message, ip_address, b_broadcast, port);
 	}
 
 }
