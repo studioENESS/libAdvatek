@@ -1454,3 +1454,34 @@ void advatek_manager::copyDevice(sAdvatekDevice* fromDevice, sAdvatekDevice* toD
 
 	importJSON(toDevice, importOptions);
 }
+
+void advatek_manager::setEndUniverseChannel(uint16_t startUniverse, uint16_t startChannel, uint16_t pixelCount, uint16_t outputGrouping, uint16_t& endUniverse, uint16_t& endChannel) {
+	pixelCount *= outputGrouping;
+	uint16_t pixelChannels = (3 * pixelCount); // R-G-B data
+	uint16_t pixelUniverses = ((float)(startChannel + pixelChannels) / 510.f);
+
+	endUniverse = startUniverse + pixelUniverses;
+	endChannel = (startChannel + pixelChannels - 1) % 510;
+}
+
+void advatek_manager::load_ipStr(std::string ipStr, uint8_t* address)
+{
+	int ip1, ip2, ip3, ip4;
+	sscanf(ipStr.c_str(), "%i.%i.%i.%i", &ip1, &ip2, &ip3, &ip4);
+	address[0] = ip1;
+	address[1] = ip2;
+	address[2] = ip3;
+	address[3] = ip4;
+}
+
+void advatek_manager::load_macStr(std::string macStr, uint8_t* address)
+{
+	int mac1, mac2, mac3, mac4, mac5, mac6;
+	sscanf(macStr.c_str(), "%02x:%02x:%02x:%02x:%02x:%02x", &mac1, &mac2, &mac3, &mac4, &mac5, &mac6);
+	address[0] = mac1;
+	address[1] = mac2;
+	address[2] = mac3;
+	address[3] = mac4;
+	address[4] = mac5;
+	address[5] = mac6;
+}

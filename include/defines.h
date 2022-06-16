@@ -149,7 +149,7 @@ typedef struct sAdvatekDevice {
 
 	int MinUniverse() const;
 	int MaxUniverse() const;
-
+	 
 	~sAdvatekDevice() {
 		if (Model) delete Model;
 		if (Firmware) delete Firmware;
@@ -199,6 +199,3 @@ std::string ipStr(uint8_t* address);
 std::vector<std::string> splitter(std::string in_pattern, std::string& content);
 
 void insertSwapped16(std::vector<uint8_t>& dest, uint16_t* pData, int32_t size);
-void setEndUniverseChannel(uint16_t startUniverse, uint16_t startChannel, uint16_t pixelCount, uint16_t outputGrouping, uint16_t& endUniverse, uint16_t& endChannel);
-void load_ipStr(std::string ipStr, uint8_t* address);
-void load_macStr(std::string macStr, uint8_t* address);

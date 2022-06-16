@@ -125,6 +125,10 @@ public:
 	void exportJSON(std::vector<sAdvatekDevice*>& devices, std::string path);
 	std::string validateJSON(boost::property_tree::ptree advatek_devices);
 
+	void setEndUniverseChannel(uint16_t startUniverse, uint16_t startChannel, uint16_t pixelCount, uint16_t outputGrouping, uint16_t& endUniverse, uint16_t& endChannel);
+	void load_ipStr(std::string ipStr, uint8_t* address);
+	void load_macStr(std::string macStr, uint8_t* address);
+
 	static const char* RGBW_Order[24];
 
 	IClient* m_pUdpClient;
