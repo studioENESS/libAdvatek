@@ -55,7 +55,7 @@ void UdpClient::Send(const std::vector<uint8_t>& message, std::string& s_adr, bo
     }
     catch (const boost::system::system_error& ex)
     {
-        std::cout << "Failed to send from socket ... " << std::endl;
+        std::cout << "Failed to send UDP message from socket ... " << std::endl;
         std::cout << ex.what() << std::endl;
     }
 }
@@ -63,7 +63,7 @@ void UdpClient::Send(const std::vector<uint8_t>& message, std::string& s_adr, bo
 std::vector<uint8_t> UdpClient::PopMessage()
 {
     if (incomingMessages.empty())
-        throw std::logic_error("No messages to pop ... ");
+        throw std::logic_error("No UDP messages to pop ... ");
     return incomingMessages.pop();
 }
 

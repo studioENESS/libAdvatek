@@ -874,29 +874,28 @@ void advatek_manager::process_udp_message(uint8_t* data) {
 	char ID[9];
 	memcpy(ID, data, sizeof(uint8_t) * 9);
 	data += 9;
-	std::cout << "ID: " << ID << std::endl;
-
+	
 	std::string sid;
 	for (int i(0); i < 8; i++) { sid += ID[i]; }
 	if (sid.compare("Advatech") != 0) return; // Not an Advatek message ...
-
-	//--------
 
 	uint16_t OpCodes;
 	memcpy(&OpCodes, data, sizeof(uint16_t));
 	data += 2;
 	// Swap bytes
 	bswap_16(OpCodes);
-	std::cout << "messageType: " << OpCodes << std::endl;
 
 	switch (OpCodes) {
 	case OpPollReply:
+		std::cout << "Processing UDP Poll Reply." << OpCodes << std::endl;
 		process_opPollReply(data);
 		return;
 	case OpTestAnnounce:
+		std::cout << "Processing UDP Test Announce." << OpCodes << std::endl;
 		process_opTestAnnounce(data);
 		return;
 	default:
+		std::cout << "Ignoring UDP message of type " << OpCodes << std::endl;
 		return;
 	}
 }
@@ -973,14 +972,14 @@ void advatek_manager::refreshAdaptors() {
 	}
 	catch (boost::exception& e)
 	{
-		std::cout << "Query didn't resolve Any adapters - " << boost::diagnostic_information(e) << std::endl;
+		std::cout << "Unable to find any network adapters - " << boost::diagnostic_information(e) << std::endl;
 		return;
 	}
 
 	while (it != boost::asio::ip::tcp::resolver::iterator())
 	{
 		boost::asio::ip::address addr = (it++)->endpoint().address();
-		std::cout << "adapter found: " << addr.to_string() << std::endl;
+		std::cout << "Network adapter found: " << addr.to_string() << std::endl;
 		if (addr.is_v4()) {
 			networkAdaptors.push_back(addr.to_string());
 		}
