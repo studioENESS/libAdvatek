@@ -5,27 +5,30 @@
 #include <thread>
 #include <array>
 #include "LockedQueue.h"
-#include <boost/asio.hpp>
-
+#define USE_RAW_UDP
 static const int NetworkBufferSize = 4096;
-using boost::asio::ip::udp;
+
 class IClient
 {
 public:
 	virtual ~IClient() {};
-	virtual bool bind() = 0;
+	virtual bool SetupSocket() = 0;
 	virtual bool HasMessages() = 0;
 	virtual void Send(const std::vector<uint8_t>& message, std::string& s_adr, bool b_broadcast, int port = 49150) = 0;
 	virtual std::vector<uint8_t> PopMessage() = 0;
 };
 
+
+#ifndef USE_RAW_UDP
+#include <boost/asio.hpp>
+using boost::asio::ip::udp;
 class UdpClient : public IClient
 {
 
 public:
 	UdpClient(std::string host, unsigned short server_port, unsigned short local_port = 0);
 	virtual ~UdpClient() override;
-	virtual bool bind() override;
+	virtual bool SetupSocket() override;
 	virtual bool HasMessages() override;
 	virtual void Send(const std::vector<uint8_t>& message, std::string& s_adr, bool b_broadcast, int port = 49150);
 	virtual std::vector<uint8_t> PopMessage() override;
@@ -46,3 +49,47 @@ private:
 	std::thread service_thread;
 	LockedQueue<std::vector<uint8_t>> incomingMessages;
 };
+#else 
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
+#ifdef _WIN32
+#include <WinSock2.h>
+
+#else
+#include <sys/socket.h> 
+#define SOCKET int
+#define SOCKET_ERROR -1
+#define INVALID_SOCKET -1
+#include <errno.h>
+#define WSAGetLastError() errno
+#include <linux/if_packet.h> 
+#endif
+
+class UdpClient : public IClient
+{
+
+public:
+	UdpClient(std::string host, unsigned short server_port, unsigned short local_port = 0);
+	virtual ~UdpClient() override;
+	virtual bool SetupSocket() override;
+	virtual bool HasMessages() override;
+	virtual void Send(const std::vector<uint8_t>& message, std::string& s_adr, bool b_broadcast, int port = 49150);
+	virtual std::vector<uint8_t> PopMessage() override;
+protected:
+	void run_service();
+	void start_receive();
+
+	void handle_receive(const std::error_code& error, std::size_t bytes_transferred);
+
+private:
+	std::string m_ipAddress;
+	unsigned short m_serverport;
+	
+	SOCKET dataSocket;
+	SOCKET browserSocket;	
+	sockaddr_in server, si_other;
+	//e131_addr_t _dest;
+	std::array<char, NetworkBufferSize> recv_buffer;
+	std::thread service_thread;
+	LockedQueue<std::vector<uint8_t>> incomingMessages;
+};
+#endif
