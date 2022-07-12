@@ -2,6 +2,7 @@
 uint8_t uuid[16] = { 0x36, 0x27, 0x5f, 0x8e, 0xd5, 0x39, 0x11, 0xea, 0x87, 0xd0, 0x02, 0x42, 0xac, 0x13, 0x00, 0x03 };
  
 #include <fcntl.h>
+#include <unistd.h>
 // convert from shorts to BYTEs and back again
 #define short_get_high_byte(x) ((0xFF00 & x) >> 8)
 #define short_get_low_byte(x)  (0x00FF & x)
@@ -42,8 +43,17 @@ UdpClient::~UdpClient()
 {
     for (auto s: mapSockets)
     {
-        closesocket(s.second);
+        #ifdef _WIN32
+            closesocket(s.second);
+        #else
+            shutdown(s.second,2);
+            close(s.second);
+            s.second = 0;
+
+        #endif
+        
     }
+    mapSockets.clear();
 
     service_thread.join();
 
@@ -93,7 +103,7 @@ bool UdpClient::SetupSocket()
     //ns::debug::write("Bind done");
     bool enabled = true;
 
-    if (setsockopt(mapSockets[49150], SOL_SOCKET, SO_BROADCAST, (char*)&enabled, sizeof(BOOL)) < 0) {
+    if (setsockopt(mapSockets[49150], SOL_SOCKET, SO_BROADCAST, (char*)&enabled, sizeof(bool)) < 0) {
         //ns::debug::write("Can't enable Broadcasting");
         //exit(EXIT_FAILURE);
     }
@@ -110,11 +120,12 @@ bool UdpClient::SetupSocket()
         //return ARTNET_ENET;
     }
 
-#ifdef WIN32
+
     if (setsockopt(mapSockets[49150], SOL_SOCKET, SO_REUSEADDR, (char*)&enable,
         sizeof(enable)) < 0) {
     }
 
+#ifdef WIN32
     u_long _true = 1;
 
     if (SOCKET_ERROR == ioctlsocket(mapSockets[49150], FIONBIO, &_true)) {
@@ -204,7 +215,7 @@ void UdpClient::run_service()
     while (mapSockets.size() != 0)
     {
         start_receive();
-        Sleep(10);
+        
     }
 }
 
@@ -213,9 +224,9 @@ void UdpClient::start_receive()
     static int slen = sizeof(si_other);
     int recv_len = 0;
 
-    BYTE buf[NetworkBufferSize];
+    char buf[NetworkBufferSize];
 
-    if ((recv_len = recvfrom(mapSockets[49150], (char*)buf, NetworkBufferSize, 0, (struct sockaddr*)&si_other, &slen)) != SOCKET_ERROR) {
+    if ((recv_len = recvfrom(mapSockets[49150], (char*)buf, NetworkBufferSize, 0, (struct sockaddr*)&si_other, (socklen_t*)&slen)) != SOCKET_ERROR) {
         ("recvfrom() failed with error code : %d", WSAGetLastError());
     }
     if (recv_len > 0)

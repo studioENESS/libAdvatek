@@ -64,6 +64,13 @@ private:
 #include <errno.h>
 #define WSAGetLastError() errno
 #include <linux/if_packet.h> 
+
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <cstring>
+
 #endif
 
 class UdpClient : public IClient
