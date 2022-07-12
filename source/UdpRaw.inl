@@ -34,14 +34,17 @@ UdpClient::UdpClient(std::string host, unsigned short server_port, unsigned shor
     si_other.sin_addr.s_addr = inet_addr("255.255.255.255");
     si_other.sin_port = htons(49150);
     SetupSocket();
-    dataSocket = 0;
+    
     service_thread = std::thread(&UdpClient::run_service, this);
 }
 
 UdpClient::~UdpClient()
 {
-    closesocket(browserSocket);
-    browserSocket = 0;
+    for (auto s: mapSockets)
+    {
+        closesocket(s.second);
+    }
+
     service_thread.join();
 
 }
@@ -49,7 +52,8 @@ UdpClient::~UdpClient()
 bool UdpClient::SetupSocket()
 {
     bool bOk = true;
-
+    mapSockets.emplace(49150, SOCKET());
+    
 #ifdef _WIN32
     //Initialise winsock
     WSADATA wsa;
@@ -68,7 +72,7 @@ bool UdpClient::SetupSocket()
 #endif
     //Create a socket
 
-    if ((browserSocket = socket(PF_INET, SOCK_DGRAM, 0)) == INVALID_SOCKET) {
+    if ((mapSockets[49150] = socket(PF_INET, SOCK_DGRAM, 0)) == INVALID_SOCKET) {
         //ns::debug::write("Could not create socket : %d", WSAGetLastError());
     }
 
@@ -81,7 +85,7 @@ bool UdpClient::SetupSocket()
 
 
     //Bind
-    if (bind(browserSocket, (struct sockaddr*)&server, sizeof(server)) == SOCKET_ERROR) {
+    if (bind(mapSockets[49150], (struct sockaddr*)&server, sizeof(server)) == SOCKET_ERROR) {
         //ns::debug::write("Bind failed with error code : %d", WSAGetLastError());
         //exit(EXIT_FAILURE);
     }
@@ -89,14 +93,14 @@ bool UdpClient::SetupSocket()
     //ns::debug::write("Bind done");
     bool enabled = true;
 
-    if (setsockopt(browserSocket, SOL_SOCKET, SO_BROADCAST, (char*)&enabled, sizeof(BOOL)) < 0) {
+    if (setsockopt(mapSockets[49150], SOL_SOCKET, SO_BROADCAST, (char*)&enabled, sizeof(BOOL)) < 0) {
         //ns::debug::write("Can't enable Broadcasting");
         //exit(EXIT_FAILURE);
     }
 
     bool enable = true;
-    /*
-    if (setsockopt(dataSocket,
+    
+    if (setsockopt(mapSockets[49150],
         SOL_SOCKET,
         SO_BROADCAST,
         (char*)&enable, // char* for win32
@@ -107,19 +111,19 @@ bool UdpClient::SetupSocket()
     }
 
 #ifdef WIN32
-    if (setsockopt(dataSocket, SOL_SOCKET, SO_REUSEADDR, (char*)&enable,
+    if (setsockopt(mapSockets[49150], SOL_SOCKET, SO_REUSEADDR, (char*)&enable,
         sizeof(enable)) < 0) {
     }
 
     u_long _true = 1;
 
-    if (SOCKET_ERROR == ioctlsocket(dataSocket, FIONBIO, &_true)) {
+    if (SOCKET_ERROR == ioctlsocket(mapSockets[49150], FIONBIO, &_true)) {
 
     }
 
 #endif
-*/
-    SetSocketBlockingEnabled(browserSocket, false);
+
+    SetSocketBlockingEnabled(mapSockets[49150], false);
     return bOk;
 }
 
@@ -128,8 +132,8 @@ bool UdpClient::HasMessages()
     return !incomingMessages.empty();
 }
 
-void UdpClient::Send(const std::vector<uint8_t>& message, std::string& s_adr, bool b_broadcast, int port)
-{ 
+void UdpClient::Send(const char* data, int32_t size, std::string& s_adr, bool b_broadcast, int port)
+{
     int slen;
     slen = sizeof(si_other);
     memset(&si_other, '\0', slen);
@@ -139,31 +143,38 @@ void UdpClient::Send(const std::vector<uint8_t>& message, std::string& s_adr, bo
     si_other.sin_port = htons(port);
     if (port == 49150)
     {
-        if (sendto(browserSocket, (char*)message.data(), message.size(), 0, (struct sockaddr*)&si_other, slen) == SOCKET_ERROR) {
+        if (sendto(mapSockets[49150], data, size, 0, (struct sockaddr*)&si_other, slen) == SOCKET_ERROR) {
             printf("sendto() failed with error code : %d", WSAGetLastError());
             exit(EXIT_FAILURE);
         }
     }
     else
     {
-        if (dataSocket == 0)
+        auto res = mapSockets.find(port);
+        if (res == mapSockets.end())
         {
-            dataSocket = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
+            mapSockets.emplace(port, socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP));
+
             sockaddr_in addr;
             addr.sin_family = AF_INET;
             addr.sin_addr.s_addr = INADDR_ANY;
             addr.sin_port = htons(port);
             memset(addr.sin_zero, 0, sizeof addr.sin_zero);
-            bind(dataSocket, (struct sockaddr*)&addr, sizeof addr);
+            bind(mapSockets[port], (struct sockaddr*)&addr, sizeof addr);
         }
 
-        if (sendto(dataSocket, (char*)message.data(), message.size(), 0, (struct sockaddr*)&si_other, slen) == SOCKET_ERROR) {
+        if (sendto(mapSockets[port], data, size, 0, (struct sockaddr*)&si_other, slen) == SOCKET_ERROR) {
             printf("sendto() failed with error code : %d", WSAGetLastError());
             exit(EXIT_FAILURE);
         }
 
-    
+
     }
+}
+void UdpClient::Send(const std::vector<uint8_t>& message, std::string& s_adr, bool b_broadcast, int port)
+{ 
+    Send((const char*)message.data(), message.size(), s_adr, b_broadcast, port);
+    
    /* try {
         boost::asio::ip::multicast::outbound_interface option(boost::asio::ip::address_v4::from_string(m_ipAddress.c_str()));
         socket.set_option(option);
@@ -190,9 +201,11 @@ std::vector<uint8_t> UdpClient::PopMessage()
 
 void UdpClient::run_service()
 {
-    while (browserSocket)
+    while (mapSockets.size() != 0)
+    {
         start_receive();
-    
+        Sleep(10);
+    }
 }
 
 void UdpClient::start_receive()
@@ -202,7 +215,7 @@ void UdpClient::start_receive()
 
     BYTE buf[NetworkBufferSize];
 
-    if ((recv_len = recvfrom(browserSocket, (char*)buf, NetworkBufferSize, 0, (struct sockaddr*)&si_other, &slen)) != SOCKET_ERROR) {
+    if ((recv_len = recvfrom(mapSockets[49150], (char*)buf, NetworkBufferSize, 0, (struct sockaddr*)&si_other, &slen)) != SOCKET_ERROR) {
         ("recvfrom() failed with error code : %d", WSAGetLastError());
     }
     if (recv_len > 0)

@@ -106,6 +106,7 @@ public:
 	void process_udp_message(uint8_t* data);
 	void listen();
 	void send_udp_message(std::string ip_address, int port, bool b_broadcast, std::vector<uint8_t> message);
+	void send_udp_message(std::string ip_address, int port, bool b_broadcast, uint8_t* data, int32_t size);
 	void unicast_udp_message(std::string ip_address, std::vector<uint8_t> message);
 	void broadcast_udp_message(std::vector<uint8_t> message);
 	void auto_sequence_channels(sAdvatekDevice* device);

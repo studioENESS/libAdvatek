@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include <map>
 #include <thread>
 #include <array>
 #include "LockedQueue.h"
@@ -15,6 +16,7 @@ public:
 	virtual bool SetupSocket() = 0;
 	virtual bool HasMessages() = 0;
 	virtual void Send(const std::vector<uint8_t>& message, std::string& s_adr, bool b_broadcast, int port = 49150) = 0;
+	virtual void Send(const char* data, int32_t size, std::string& s_adr, bool b_broadcast, int port = 49150)=0;
 	virtual std::vector<uint8_t> PopMessage() = 0;
 };
 
@@ -73,6 +75,7 @@ public:
 	virtual bool SetupSocket() override;
 	virtual bool HasMessages() override;
 	virtual void Send(const std::vector<uint8_t>& message, std::string& s_adr, bool b_broadcast, int port = 49150);
+	virtual void Send(const char* data, int32_t size, std::string& s_adr, bool b_broadcast, int port = 49150);
 	virtual std::vector<uint8_t> PopMessage() override;
 protected:
 	void run_service();
@@ -84,8 +87,8 @@ private:
 	std::string m_ipAddress;
 	unsigned short m_serverport;
 	
-	SOCKET dataSocket;
-	SOCKET browserSocket;	
+	
+	std::map<int, SOCKET> mapSockets;
 	sockaddr_in server, si_other;
 	//e131_addr_t _dest;
 	std::array<char, NetworkBufferSize> recv_buffer;

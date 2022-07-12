@@ -187,6 +187,14 @@ void advatek_manager::listen() {
 	}
 }
 
+void advatek_manager::send_udp_message(std::string ip_address, int port, bool b_broadcast, uint8_t* data, int32_t size)
+{
+	if (m_pUdpClient)
+	{
+		m_pUdpClient->Send((const char*)data, size, ip_address, b_broadcast, port);
+	}
+
+}
 void advatek_manager::send_udp_message(std::string ip_address, int port, bool b_broadcast, std::vector<uint8_t> message)
 {
 	if (m_pUdpClient)
