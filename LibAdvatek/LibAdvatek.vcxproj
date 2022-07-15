@@ -163,6 +163,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="..\source\defines.cpp" />
+    <ClCompile Include="..\source\SAdvatekDevice.cpp" />
     <ClCompile Include="..\source\udpclient.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
@@ -172,6 +173,7 @@
     <ClInclude Include="..\include\defines.h" />
     <ClInclude Include="..\include\LockedQueue.h" />
     <ClInclude Include="..\include\udpclient.h" />
+    <ClInclude Include="..\source\SAdvatekDevice.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\source\UdpBoost.inl" />

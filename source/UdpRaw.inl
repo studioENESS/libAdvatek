@@ -2,7 +2,9 @@
 uint8_t uuid[16] = { 0x36, 0x27, 0x5f, 0x8e, 0xd5, 0x39, 0x11, 0xea, 0x87, 0xd0, 0x02, 0x42, 0xac, 0x13, 0x00, 0x03 };
  
 #include <fcntl.h>
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 // convert from shorts to BYTEs and back again
 #define short_get_high_byte(x) ((0xFF00 & x) >> 8)
 #define short_get_low_byte(x)  (0x00FF & x)
@@ -134,7 +136,7 @@ bool UdpClient::SetupSocket()
 
 #endif
 
-    SetSocketBlockingEnabled(mapSockets[49150], false);
+    SetSocketBlockingEnabled(mapSockets[(int)49150], false);
     return bOk;
 }
 
@@ -184,7 +186,7 @@ void UdpClient::Send(const char* data, int32_t size, std::string& s_adr, bool b_
 }
 void UdpClient::Send(const std::vector<uint8_t>& message, std::string& s_adr, bool b_broadcast, int port)
 { 
-    Send((const char*)message.data(), message.size(), s_adr, b_broadcast, port);
+    Send((const char*)message.data(), (int)message.size(), s_adr, b_broadcast, port);
     
    /* try {
         boost::asio::ip::multicast::outbound_interface option(boost::asio::ip::address_v4::from_string(m_ipAddress.c_str()));
@@ -226,7 +228,11 @@ void UdpClient::start_receive()
 
     char buf[NetworkBufferSize];
 
+#ifdef _WIN32
+    if ((recv_len = recvfrom(mapSockets[49150], (char*)buf, NetworkBufferSize, 0, (struct sockaddr*)&si_other, &slen)) != SOCKET_ERROR) {
+#else
     if ((recv_len = recvfrom(mapSockets[49150], (char*)buf, NetworkBufferSize, 0, (struct sockaddr*)&si_other, (socklen_t*)&slen)) != SOCKET_ERROR) {
+#endif
         ("recvfrom() failed with error code : %d", WSAGetLastError());
     }
     if (recv_len > 0)
