@@ -278,7 +278,7 @@ void advatek_manager::addVirtualDevice(sImportOptions& importOptions) {
 	#ifdef USE_BOOST
 		boost::property_tree::read_json(ss_json, tree_add_virt_device);
 #else
-	tree_add_virt_device = ss_json.str();
+	tree_add_virt_device = JSON_TYPE::parse(ss_json.str());
 #endif
 
 
@@ -1056,194 +1056,7 @@ void advatek_manager::setCurrentAdaptor(int adaptorIndex) {
 std::string advatek_manager::importJSON(sAdvatekDevice* device, JSON_TYPE json_device, sImportOptions& importOptions) {
 	std::string s_hold;
 	std::stringstream report;
-	// TO DO - Import
-	/*
-	if (importOptions.init) {
-		SetValueFromJson(uint8_t, ProtVer);
-		SetValueFromJson(uint8_t, CurrentProtVer);
-		SetValueFromJson(uint8_t, ModelLength);
-		if (json_device.count("LenFirmware") != 0) {
-			SetValueFromJson(uint8_t, LenFirmware);
-		}
-		else {
-			device->LenFirmware = 20; // Current Protver
-		}
-
-		if (device->Model) delete[] device->Model;
-		device->Model = new uint8_t[device->ModelLength + 1];
-		memset(device->Model, 0x00, sizeof(uint8_t) * (device->ModelLength + 1));
-		memcpy(device->Model, json_device.get<std::string>("Model").c_str(), sizeof(uint8_t) * device->ModelLength);
-		s_hold = json_device.get<std::string>("Mac");
-		load_macStr(s_hold, device->Mac);
-	}
-
-	if (json_device.get<std::string>("Model").compare(std::string((char*)device->Model)) == 0) {
-		report << "Done!\n";
-	}
-	else {
-		report << "Beware: Loaded data from ";
-		report << json_device.get<std::string>("Model");
-		report << " to ";
-		report << device->Model;
-		report << "\n";
-	}
-
-	if (importOptions.network || importOptions.init) {
-
-		SetValueFromJson(uint8_t, DHCP);
-
-		s_hold = json_device.get<std::string>("StaticIP");
-		load_ipStr(s_hold, device->StaticIP);
-		s_hold = json_device.get<std::string>("StaticSM");
-		load_ipStr(s_hold, device->StaticSM);
-
-		report << "- Import Network Settings Succesfull.\n";
-	}
-
-	if (importOptions.ethernet_control || importOptions.init) {
-		bool go = EqualValueJson(uint8_t, NumOutputs);
-		if (go || importOptions.init) {
-			SetValueFromJson(uint8_t, HoldLastFrame);
-			SetValueFromJson(uint8_t, SimpleConfig);
-			SetValueFromJson(uint16_t, MaxPixPerOutput);
-			SetValueFromJson(uint8_t, NumOutputs);
-			if (importOptions.init) {
-
-				if (device->OutputPixels) delete[] device->OutputPixels;
-				if (device->OutputUniv) delete[] device->OutputUniv;
-				if (device->OutputChan) delete[] device->OutputChan;
-				if (device->OutputNull) delete[] device->OutputNull;
-				if (device->OutputZig) delete[] device->OutputZig;
-				if (device->OutputReverse) delete[] device->OutputReverse;
-				if (device->OutputColOrder) delete[] device->OutputColOrder;
-				if (device->OutputGrouping) delete[] device->OutputGrouping;
-				if (device->OutputBrightness) delete[] device->OutputBrightness;
-
-				device->OutputPixels = new uint16_t[device->NumOutputs];
-				device->OutputUniv = new uint16_t[device->NumOutputs];
-				device->OutputChan = new uint16_t[device->NumOutputs];
-				device->OutputNull = new uint8_t[device->NumOutputs];
-				device->OutputZig = new uint16_t[device->NumOutputs];
-				device->OutputReverse = new uint8_t[device->NumOutputs];
-				device->OutputColOrder = new uint8_t[device->NumOutputs];
-				device->OutputGrouping = new uint16_t[device->NumOutputs];
-				device->OutputBrightness = new uint8_t[device->NumOutputs];
-			}
-			SetChildIntValuesFromJson(OutputPixels);
-			SetChildIntValuesFromJson(OutputUniv);
-			SetChildIntValuesFromJson(OutputChan);
-			SetChildIntValuesFromJson(OutputNull);
-			SetChildIntValuesFromJson(OutputZig);
-			SetChildIntValuesFromJson(OutputReverse);
-			SetChildIntValuesFromJson(OutputColOrder);
-			SetChildIntValuesFromJson(OutputGrouping);
-			SetChildIntValuesFromJson(OutputBrightness);
-			report << "- Import Ethernet Control Succesfull.\n";
-		}
-		else {
-			report << "- Import Ethernet Control Failed. (Output count does not match)\n";
-		}
-	}
-
-	if (importOptions.dmx_outputs || importOptions.init) {
-		bool go = EqualValueJson(uint8_t, NumDMXOutputs);
-		if (go || importOptions.init) {
-			if (json_device.get<uint8_t>("NumDMXOutputs") == 0) {
-				report << "- Import DMX Control Failed. (No DMX outputs found)\n";
-			}
-			else {
-				if (importOptions.init) {
-					SetValueFromJson(uint8_t, NumDMXOutputs);
-
-					if (device->DmxOutOn) delete[] device->DmxOutOn;
-					if (device->DmxOutUniv) delete[] device->DmxOutUniv;
-					if (device->TempDmxOutOn) delete[] device->TempDmxOutOn;
-
-					device->DmxOutOn = new uint8_t[device->NumDMXOutputs];
-					device->DmxOutUniv = new uint16_t[device->NumDMXOutputs];
-					device->TempDmxOutOn = new bool[device->NumDMXOutputs];
-				}
-				SetValueFromJson(uint8_t, ProtocolsOnDmxOut);
-				SetChildIntValuesFromJson(DmxOutOn);
-				SetChildIntValuesFromJson(DmxOutUniv);
-				report << "- Import DMX Control Succesfull.\n";
-			}
-		}
-		else {
-			report << "- Import DMX Control Failed. (Output count does not match)\n";
-		}
-	}
-
-	if (importOptions.led_settings || importOptions.init) {
-		bool go = EqualValueJson(uint8_t, NumDrivers);
-		if (go || importOptions.init) {
-			SetValueFromJson(uint8_t, NumDrivers);
-
-			if (device->DriverType) delete[] device->DriverType;
-			if (device->DriverSpeed) delete[] device->DriverSpeed;
-			if (device->DriverExpandable) delete[] device->DriverExpandable;
-			if (device->DriverNames) {
-				for (int i = 0; i < device->NumDrivers; i++) delete[] device->DriverNames[i];
-				delete[] device->DriverNames;
-			}
-			if (device->Firmware) delete[] device->Firmware;
-
-			device->DriverType = new uint8_t[device->NumDrivers];
-			device->DriverSpeed = new uint8_t[device->NumDrivers];
-			device->DriverExpandable = new uint8_t[device->NumDrivers];
-			device->DriverNames = new char* [device->NumDrivers];
-			device->Firmware = new uint8_t[device->LenFirmware];
-
-			memset(device->Firmware, 0, sizeof(uint8_t) * device->LenFirmware);
-			const char* tempFirmwareName = "Virtual";
-			memcpy(device->Firmware, tempFirmwareName, 12);
-			SetValueFromJson(uint8_t, DriverNameLength);
-			for (int i = 0; i < device->NumDrivers; i++) {
-				device->DriverNames[i] = new char[device->DriverNameLength + 1];
-				memset(device->DriverNames[i], 0, sizeof(char) * (device->DriverNameLength + 1));
-			}
-			SetValueFromJson(uint8_t, DriverNameLength);
-			for (JSON_TYPE ::value_type& node : json_device.get_child("DriverNames"))
-			{
-				std::string sTempValue = node.second.data();
-				int index = std::stoi(node.first);
-				const char* sCStr = sTempValue.c_str();
-
-				memcpy(device->DriverNames[index], sCStr, sizeof(char) * device->DriverNameLength);
-			}
-			SetChildIntValuesFromJson(DriverType);
-			SetChildIntValuesFromJson(DriverSpeed);
-			SetChildIntValuesFromJson(DriverExpandable);
-
-			SetValueFromJson(int, CurrentDriver);
-			SetValueFromJson(uint8_t, CurrentDriverType);
-			SetValueFromJson(int, CurrentDriverSpeed);
-			SetValueFromJson(uint8_t, CurrentDriverExpanded);
-		}
-		else {
-			report << "- Import LED Settings Failed. (Driver count does not match)\n";
-		}
-
-		SetChildIntValuesFromJson(Gamma);
-		device->Gammaf[0] = (float)device->Gamma[0] * 0.1;
-		device->Gammaf[1] = (float)device->Gamma[1] * 0.1;
-		device->Gammaf[2] = (float)device->Gamma[2] * 0.1;
-		device->Gammaf[3] = (float)device->Gamma[3] * 0.1;
-
-		report << "- Import LED Settings Succesfull.\n";
-	}
-
-	if (importOptions.nickname || importOptions.init) {
-		s_hold = json_device.get<std::string>("Nickname");
-		strncpy(device->Nickname, s_hold.c_str(), 40);
-		report << "- Import Nickname Succesfull.\n";
-	}
-
-	if (importOptions.fan_on_temp) {
-		SetValueFromJson(uint8_t, MaxTargetTemp);
-		report << "- Import Fan On Temp Succesfull.\n";
-	}
-	*/
+	device->from_json(json_device, importOptions);
 	return report.str();
 }
 
@@ -1255,9 +1068,9 @@ std::string advatek_manager::importJSON(sAdvatekDevice* device, sImportOptions& 
 		return "Error: No JSON data found.";
 	}
 	else { // data
-		//ss_import_json_device << importOptions.json;
+		ss_import_json_device << importOptions.json;
 		//boost::property_tree::read_json(ss_import_json_device, import_json_device);
-		import_json_device = importOptions.json;
+		import_json_device = JSON_TYPE::parse(ss_import_json_device); ;
 	}
 	if (import_json_device.count("advatek_devices") > 0) {
 		return importJSON(device, import_json_device["advatek_devices"].front(), importOptions);
@@ -1405,7 +1218,7 @@ void advatek_manager::exportJSON(std::vector<sAdvatekDevice*>& devices, std::str
 	for (auto& device : devices) {
 		tree_exportJSON_device.clear();
 		getJSON(device, tree_exportJSON_device);
-		tree_exportJSON_devicesArr.push_back(std::make_pair("", tree_exportJSON_device));
+		tree_exportJSON_devicesArr.push_back(tree_exportJSON_device);
 	}
 
 	tree_exportJSON_devices["advatek_devices"]=tree_exportJSON_devicesArr;

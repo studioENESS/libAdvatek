@@ -50,7 +50,6 @@
 	for (boost::property_tree::ptree::value_type &node : json_device.get_child(#atr)) { \
 	std::string sTempValue = node.second.data(); \\
 	 device->atr[std::stoi(node.first)] = sTempValue.c_str(); }
-
 #endif //  USE_BOOST
 
 extern const char* ExportAllTypes[3];

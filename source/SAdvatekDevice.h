@@ -3,12 +3,16 @@
 
 typedef struct sAdvatekDevice {
 public:
-	sAdvatekDevice();
+
 	~sAdvatekDevice();
 
 	bool to_json(JSON_TYPE& j);
-	bool from_json(const JSON_TYPE& j);
+	const std::stringstream& from_json(const JSON_TYPE& j, sImportOptions& importOptions);
 
+
+	void load_ipStr(std::string ipStr, uint8_t* address);
+
+	void load_macStr(std::string macStr, uint8_t* address);
 
 	uint8_t ProtVer; // Protocol version
 	uint8_t CurrentProtVer; // Using Protocol version
