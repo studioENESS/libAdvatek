@@ -132,8 +132,6 @@ const std::stringstream& sAdvatekDevice::from_json(const JSON_TYPE& j, sImportOp
 	 else {\
 		SetIntValueFromJson(type,atr)};
 
-
-	//#define EqualValueJson(type, atr) (atr ==  j.at(#atr).get<type>(atr))
 	#define SetChildIntValuesFromJson(atr) \
 		for (auto& node : j.at(#atr).items()) { std::string sval; node.value().get_to(sval);  atr[std::stoi(node.key())] = std::stoi(sval); }
 
