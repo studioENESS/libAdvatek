@@ -4,6 +4,12 @@
 #ifndef _WIN32
 #include <netdb.h>
 #include <ifaddrs.h>
+#else
+#include <iphlpapi.h>
+#pragma comment(lib, "IPHLPAPI.lib")
+#define MALLOC(x) HeapAlloc(GetProcessHeap(), 0, (x))
+#define FREE(x) HeapFree(GetProcessHeap(), 0, (x))
+
 #endif
 
 bool advatek_manager::compareDriverNames(std::pair<int, char*> Driver1, std::pair<int, char*> Driver2)
@@ -882,7 +888,7 @@ void advatek_manager::process_udp_message(uint8_t* data) {
 	char ID[9];
 	memcpy(ID, data, sizeof(uint8_t) * 9);
 	data += 9;
-	
+
 	std::string sid;
 	for (int i(0); i < 8; i++) { sid += ID[i]; }
 	if (sid.compare("Advatech") != 0) return; // Not an Advatek message ...
@@ -964,7 +970,7 @@ void advatek_manager::refreshAdaptors() {
 	networkAdaptors.clear();
 
 #ifdef _WIN32
-
+#ifdef USE_BOOST
 	boost::asio::ip::tcp::resolver::iterator it;
 	try
 	{
@@ -992,7 +998,69 @@ void advatek_manager::refreshAdaptors() {
 			networkAdaptors.push_back(addr.to_string());
 		}
 	}
+#else
 
+	/* Declare and initialize variables */
+
+	// It is possible for an adapter to have multiple
+	// IPv4 addresses, gateways, and secondary WINS servers
+	// assigned to the adapter. 
+	//
+	// Note that this sample code only prints out the 
+	// first entry for the IP address/mask, and gateway, and
+	// the primary and secondary WINS server for each adapter. 
+
+	PIP_ADAPTER_INFO pAdapterInfo;
+	PIP_ADAPTER_INFO pAdapter = NULL;
+	DWORD dwRetVal = 0;
+	UINT i;
+
+	/* variables used to print DHCP time info */
+	struct tm newtime;
+	char buffer[32];
+	errno_t error;
+
+	ULONG ulOutBufLen = sizeof(IP_ADAPTER_INFO);
+	pAdapterInfo = (IP_ADAPTER_INFO*)MALLOC(sizeof(IP_ADAPTER_INFO));
+	if (pAdapterInfo == NULL) {
+		return;
+	}
+	// Make an initial call to GetAdaptersInfo to get
+	// the necessary size into the ulOutBufLen variable
+	if (GetAdaptersInfo(pAdapterInfo, &ulOutBufLen) == ERROR_BUFFER_OVERFLOW) {
+		FREE(pAdapterInfo);
+		pAdapterInfo = (IP_ADAPTER_INFO*)MALLOC(ulOutBufLen);
+		if (pAdapterInfo == NULL) {
+			return;
+		}
+	}
+
+	if ((dwRetVal = GetAdaptersInfo(pAdapterInfo, &ulOutBufLen)) == NO_ERROR) {
+		pAdapter = pAdapterInfo;
+		while (pAdapter) {
+			//std::cout << "\tComboIndex: \t" << pAdapter->ComboIndex << std::endl;
+			//std::cout << "\tAdapter Name: \t" << pAdapter->AdapterName << std::endl;
+			//std::cout << "\tAdapter Desc: \t" << pAdapter->Description << std::endl;
+			//std::cout << "\tAdapter Addr: \t" << std::endl;
+			for (i = 0; i < pAdapter->AddressLength; i++) {
+				if (i == (pAdapter->AddressLength - 1))
+					std::cout << (int)pAdapter->Address[i] << std::endl;
+				else
+					std::cout << (int)pAdapter->Address[i] << std::endl;
+			}
+			if (strcmp(pAdapter->IpAddressList.IpAddress.String, "0.0.0.0") != 0)
+				networkAdaptors.push_back(std::string(pAdapter->IpAddressList.IpAddress.String));
+			pAdapter = pAdapter->Next;
+			std::cout << "\n" << std::endl;;
+		}
+	}
+	else {
+		std::cout << ("GetAdaptersInfo failed with error: %d\n", dwRetVal);
+
+	}
+	if (pAdapterInfo)
+		FREE(pAdapterInfo);
+#endif
 #elif __linux__ // __arm__
 
 	struct ifaddrs* ifaddr, * ifa;
