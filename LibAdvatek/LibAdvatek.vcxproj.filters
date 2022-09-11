@@ -24,6 +24,9 @@
     <ClCompile Include="..\source\defines.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\source\SAdvatekDevice.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\advatek_manager.h">
@@ -38,5 +41,16 @@
     <ClInclude Include="..\include\defines.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\source\SAdvatekDevice.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\source\UdpBoost.inl">
+      <Filter>Source Files</Filter>
+    </None>
+    <None Include="..\source\UdpRaw.inl">
+      <Filter>Source Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

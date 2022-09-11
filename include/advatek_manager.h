@@ -1,38 +1,39 @@
 #pragma once
 
 #include "defines.h"
+#include "SAdvatekDevice.h"
 
 class advatek_manager {
 public:
 	uint8_t ProtVer = 8;
 
-	boost::property_tree::ptree OutputPixels;
-	boost::property_tree::ptree OutputUniv;
-	boost::property_tree::ptree OutputChan;
-	boost::property_tree::ptree OutputNull;
-	boost::property_tree::ptree OutputZig;
-	boost::property_tree::ptree OutputReverse;
-	boost::property_tree::ptree OutputColOrder;
-	boost::property_tree::ptree OutputGrouping;
-	boost::property_tree::ptree OutputBrightness;
-	boost::property_tree::ptree DmxOutOn;
-	boost::property_tree::ptree DmxOutUniv;
-	boost::property_tree::ptree DriverType;
-	boost::property_tree::ptree DriverSpeed;
-	boost::property_tree::ptree DriverExpandable;
-	boost::property_tree::ptree DriverNames;
-	boost::property_tree::ptree Gamma;
-	boost::property_tree::ptree MinAssistantVer;
+	JSON_TYPE OutputPixels;
+	JSON_TYPE OutputUniv;
+	JSON_TYPE OutputChan;
+	JSON_TYPE OutputNull;
+	JSON_TYPE OutputZig;
+	JSON_TYPE OutputReverse;
+	JSON_TYPE OutputColOrder;
+	JSON_TYPE OutputGrouping;
+	JSON_TYPE OutputBrightness;
+	JSON_TYPE DmxOutOn;
+	JSON_TYPE DmxOutUniv;
+	JSON_TYPE DriverType;
+	JSON_TYPE DriverSpeed;
+	JSON_TYPE DriverExpandable;
+	JSON_TYPE DriverNames;
+	JSON_TYPE Gamma;
+	JSON_TYPE MinAssistantVer;
 
-	boost::property_tree::ptree tree_virt_device;
-	boost::property_tree::ptree tree_add_virt_device;
-	boost::property_tree::ptree import_json_device;
-	boost::property_tree::ptree tree_getJSON;
-	boost::property_tree::ptree tree_exportJSON_device;
-	boost::property_tree::ptree tree_exportJSON_devices;
-	boost::property_tree::ptree tree_exportJSON_devicesArr;
+	JSON_TYPE tree_virt_device;
+	JSON_TYPE tree_add_virt_device;
+	JSON_TYPE import_json_device;
+	JSON_TYPE tree_getJSON;
+	JSON_TYPE tree_exportJSON_device;
+	JSON_TYPE tree_exportJSON_devices;
+	JSON_TYPE tree_exportJSON_devicesArr;
 
-	std::vector<boost::property_tree::ptree> checkDevices;
+	std::vector<JSON_TYPE> checkDevices;
 
 	std::vector<uint8_t> testTape;
 	std::vector<uint8_t> dataTape;
@@ -90,7 +91,9 @@ public:
 	void pasteFromMemoryDeviceTo(sAdvatekDevice* toDevice);
 
 	void copyToNewVirtualDevice(sAdvatekDevice* fromDevice);
-	void addVirtualDevice(boost::property_tree::ptree json_device, sImportOptions& importOptions);
+	
+	void addVirtualDevice(JSON_TYPE json_device, sImportOptions& importOptions);
+	
 	void addVirtualDevice(sImportOptions& importOptions);
 	void pasteToNewVirtualDevice();
 	void updateConnectedDevice(sAdvatekDevice* device);
@@ -119,12 +122,12 @@ public:
 	void setCurrentAdaptor(int adaptorIndex);
 
 	void getJSON(sAdvatekDevice* fromDevice, sImportOptions& importOptions);
-	void getJSON(sAdvatekDevice* device, boost::property_tree::ptree& JSONdevice);
+	void getJSON(sAdvatekDevice* device, JSON_TYPE& JSONdevice);
 	std::string importJSON(sAdvatekDevice* device, sImportOptions& importOptions);
-	std::string importJSON(sAdvatekDevice* device, boost::property_tree::ptree json_device, sImportOptions& importOptions);
+	std::string importJSON(sAdvatekDevice* device, JSON_TYPE json_device, sImportOptions& importOptions);
 	void exportJSON(sAdvatekDevice* device, std::string path);
 	void exportJSON(std::vector<sAdvatekDevice*>& devices, std::string path);
-	std::string validateJSON(boost::property_tree::ptree advatek_devices);
+	std::string validateJSON(JSON_TYPE advatek_devices);
 
 	void setEndUniverseChannel(uint16_t startUniverse, uint16_t startChannel, uint16_t pixelCount, uint16_t outputGrouping, uint16_t& endUniverse, uint16_t& endChannel);
 	void load_ipStr(std::string ipStr, uint8_t* address);

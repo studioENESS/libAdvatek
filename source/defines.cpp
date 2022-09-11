@@ -112,25 +112,3 @@ void insertSwapped16(std::vector<uint8_t>& dest, uint16_t* pData, int32_t size)
 		dest.push_back((uint8_t)data);
 	}
 }
-
-int sAdvatekDevice::MinUniverse() const
-{
-	int32_t iMin = INT32_MAX;
-	for (int i = 0; i < this->NumOutputs; i++)
-	{
-		iMin = std::min((int)this->OutputUniv[i], iMin);
-	}
-
-	return iMin;
-}
-
-int sAdvatekDevice::MaxUniverse() const
-{
-	int iMax = 0;
-	for (int i = 0; i < this->NumOutputs; i++)
-	{
-		iMax = std::max((int)this->OutputUniv[i], iMax);
-	}
-
-	return iMax;
-}
