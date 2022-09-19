@@ -924,18 +924,19 @@ void advatek_manager::auto_sequence_channels(sAdvatekDevice* device) {
 	uint16_t startOutputChan = device->OutputChan[0];
 	uint16_t startOutputPixels = device->OutputPixels[0];
 
-	uint16_t startEndUniverse = 0;
-	uint16_t startEndChannel = 0;
+	uint16_t startEndUniverse = 1;
+	uint16_t startEndChannel = 1;
 
 	setEndUniverseChannel(startOutputUniv, startOutputChan, startOutputPixels, device->OutputGrouping[0], startEndUniverse, startEndChannel);
 
 	for (int output = 1; output < device->NumOutputs * 0.5; output++) {
-		if (startEndChannel + 1 > 510) {
+		if (startEndChannel > 510) {
 			startEndUniverse = startEndUniverse + 1;
+			startEndChannel -= 510;
 		}
 
 		device->OutputUniv[output] = startEndUniverse;
-		device->OutputChan[output] = (startEndChannel + 1) % 510;
+		device->OutputChan[output] = startEndChannel;
 
 		// Update loop
 		startOutputUniv = device->OutputUniv[output];
@@ -1206,11 +1207,12 @@ void advatek_manager::copyDevice(sAdvatekDevice* fromDevice, sAdvatekDevice* toD
 
 void advatek_manager::setEndUniverseChannel(uint16_t startUniverse, uint16_t startChannel, uint16_t pixelCount, uint16_t outputGrouping, uint16_t& endUniverse, uint16_t& endChannel) {
 	pixelCount *= outputGrouping;
-	uint16_t pixelChannels = (3 * pixelCount); // R-G-B data
+	uint16_t pixelChannels = (3 * pixelCount); // R-G-B data // Take the chipset in account for RGBW?
 	uint16_t pixelUniverses = ((float)(startChannel + pixelChannels) / 510.f);
 
 	endUniverse = startUniverse + pixelUniverses;
 	endChannel = (startChannel + pixelChannels - 1) % 510;
+	if (endChannel == 0) endChannel = 510;
 }
 
 void advatek_manager::load_ipStr(std::string ipStr, uint8_t* address)
