@@ -176,7 +176,6 @@
     <ClInclude Include="..\source\SAdvatekDevice.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\source\UdpBoost.inl" />
     <None Include="..\source\UdpRaw.inl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

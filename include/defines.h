@@ -8,22 +8,10 @@
 #include <vector>
 #include <regex>
 #include <unordered_map>
-#ifdef USE_BOOST
-#include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/json_parser.hpp>
-
-#include <boost/array.hpp>
-#include <boost/asio.hpp>
-#include <boost/program_options.hpp>
-#include <boost/optional/optional.hpp>
-#include <boost/exception/diagnostic_information.hpp>
-#define JSON_TYPE boost::property_tree::ptree
-#else 
 #include <nlohmann/json.hpp>
 
 #define USE_NLOHMANN true
 #define JSON_TYPE nlohmann::json
-#endif
 
 #define AdvAdr "255.255.255.255" // Advatek zero network broadcast address
 #define AdvPort 49150 // Advatek UDP Port
@@ -37,20 +25,6 @@
 #define OpVisualIdent 0x000a // A broadcast to request the controller of the designated MAC to identify its location by flashing its status LED.
 
 #define bswap_16(x) x=((((x) >> 8) & 0xff) | (((x) & 0xff) << 8))
-#ifdef  USE_BOOST
-#define EqualValueJson(type, atr) (device->atr == json_device.get<type>(#atr));
-#define SetValueFromJson(type, atr) device->atr = json_device.get<type>(#atr);
-#define SetChildIntValuesFromJson(atr) \
-	for (boost::property_tree::ptree::value_type &node : json_device.get_child(#atr)) { \
-	 device->atr[std::stoi(node.first)] = std::stoi(node.second.data()); }
-#define SetChildFloatValuesFromJson(atr) \
-	for (boost::property_tree::ptree::value_type &node : json_device.get_child(#atr)) { \
-	 device->atr[std::stoi(node.first)] = std::stof(node.second.data()); }
-#define SetChildStringValuesFromJson(atr) \
-	for (boost::property_tree::ptree::value_type &node : json_device.get_child(#atr)) { \
-	std::string sTempValue = node.second.data(); \\
-	 device->atr[std::stoi(node.first)] = sTempValue.c_str(); }
-#endif //  USE_BOOST
 
 extern const char* ExportAllTypes[3];
 extern const char* SyncTypes[3];

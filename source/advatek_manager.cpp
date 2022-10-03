@@ -280,12 +280,7 @@ void advatek_manager::addVirtualDevice(sImportOptions& importOptions) {
 	ss_json.str(std::string());
 	ss_json.clear();
 	ss_json << importOptions.json;
-	#ifdef USE_BOOST
-		boost::property_tree::read_json(ss_json, tree_add_virt_device);
-#else
 	tree_add_virt_device = JSON_TYPE::parse(ss_json.str());
-#endif
-
 
 	if (tree_add_virt_device.count("advatek_devices") > 0) {
 		// Might have multiple devices
@@ -975,35 +970,6 @@ void advatek_manager::refreshAdaptors() {
 	networkAdaptors.clear();
 
 #ifdef _WIN32 
-#ifdef USE_BOOST
-	boost::asio::ip::tcp::resolver::iterator it;
-	try
-	{
-		boost::asio::io_context io_context;
-		boost::asio::ip::tcp::endpoint adaptorEndpoint(boost::asio::ip::address_v4::any(), AdvPort);
-
-		boost::asio::ip::tcp::socket sock(io_context, adaptorEndpoint);
-
-		boost::asio::ip::tcp::resolver resolver(io_context);
-
-		boost::asio::ip::tcp::resolver::query query(boost::asio::ip::host_name(), "", boost::asio::ip::resolver_query_base::flags());
-		it = resolver.resolve(query);
-	}
-	catch (boost::exception& e)
-	{
-		std::cout << "Unable to find any network adapters - " << boost::diagnostic_information(e) << std::endl;
-		return;
-	}
-
-	while (it != boost::asio::ip::tcp::resolver::iterator())
-	{
-		boost::asio::ip::address addr = (it++)->endpoint().address();
-		std::cout << "Network adapter found: " << addr.to_string() << std::endl;
-		if (addr.is_v4()) {
-			networkAdaptors.push_back(addr.to_string());
-		}
-	}
-#else
 	PIP_ADAPTER_INFO pAdapterInfo;
 	pAdapterInfo = (IP_ADAPTER_INFO*)malloc(sizeof(IP_ADAPTER_INFO));
 	ULONG buflen = sizeof(IP_ADAPTER_INFO);
@@ -1026,7 +992,6 @@ void advatek_manager::refreshAdaptors() {
 	else {
 		printf("Call to GetAdaptersInfo failed.\n");
 	}
-#endif
 #elif __linux__ // __arm__
 
 	struct ifaddrs* ifaddr, * ifa;

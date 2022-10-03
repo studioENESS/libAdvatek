@@ -46,9 +46,6 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\source\UdpBoost.inl">
-      <Filter>Source Files</Filter>
-    </None>
     <None Include="..\source\UdpRaw.inl">
       <Filter>Source Files</Filter>
     </None>
