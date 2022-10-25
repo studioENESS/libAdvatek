@@ -246,13 +246,14 @@ const std::stringstream& sAdvatekDevice::from_json(const JSON_TYPE& j, sImportOp
 	}
 
 	if (importOptions.dmx_outputs || importOptions.init) {
-		int tempNumOutputs = NumOutputs;
+		int tempNumDMXOutputs = NumDMXOutputs;
 
-		SetValueFromJson(uint8_t, NumOutputs);
-		bool go = (tempNumOutputs == NumOutputs);
-		NumOutputs = tempNumOutputs;
+		SetValueFromJson(uint8_t, NumDMXOutputs);
+		bool go = (tempNumDMXOutputs == NumDMXOutputs);
+		NumDMXOutputs = tempNumDMXOutputs;
 		if (go || importOptions.init) {
-			if (j["NumDMXOutputs"] == 0) {
+
+			if (NumDMXOutputs == 0) { 
 				report << "- Import DMX Control Failed. (No DMX outputs found)\n";
 			}
 			else {
@@ -279,11 +280,11 @@ const std::stringstream& sAdvatekDevice::from_json(const JSON_TYPE& j, sImportOp
 	}
 
 	if (importOptions.led_settings || importOptions.init) {
-		int tempNumOutputs = NumDMXOutputs;
+		int tempNumDrivers = NumDrivers;
 
-		SetValueFromJson(uint8_t, NumDMXOutputs);
-		bool go = (tempNumOutputs == NumDMXOutputs);
-		NumDMXOutputs = tempNumOutputs;
+		SetValueFromJson(uint8_t, NumDrivers);
+		bool go = (tempNumDrivers == NumDrivers);
+		NumDrivers = NumDrivers;
 		if (go || importOptions.init) {
 			SetValueFromJson(uint8_t, NumDrivers);
 
