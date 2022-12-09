@@ -10,7 +10,6 @@
 #include <unordered_map>
 #include <nlohmann/json.hpp>
 
-#define USE_NLOHMANN true
 #define JSON_TYPE nlohmann::json
 
 #define AdvAdr "255.255.255.255" // Advatek zero network broadcast address
