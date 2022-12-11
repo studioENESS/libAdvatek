@@ -160,13 +160,14 @@ const std::stringstream& sAdvatekDevice::from_json(const JSON_TYPE& j, sImportOp
 		memset(Model, 0x00, sizeof(uint8_t) * (ModelLength + 1));
 		j["Model"].get_to(s_hold);
 		memcpy(Model, s_hold.c_str(), sizeof(uint8_t) * ModelLength);
-		//memcpy(Model, j.at("Model"), )
 		
 		j.at("Mac").get_to(s_hold);
 		load_macStr(s_hold, Mac);
 	}
 
-	if (j["Model"].get<std::string>().compare(std::string((char*)Model)) == 0) {
+	auto importModel = j["Model"].get<std::string>();
+
+	if (importModel.compare(std::string((char*)Model)) == 0) {
 		report << "Done!\n";
 	}
 	else {

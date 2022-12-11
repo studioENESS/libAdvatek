@@ -254,7 +254,7 @@ void advatek_manager::pasteFromMemoryDeviceTo(sAdvatekDevice* toDevice) {
 	if (memoryDevices.size() == 0) {
 		return;
 	}
-	copyDevice(memoryDevices[0], toDevice, false);
+	copyDevice(memoryDevices[0], toDevice, true);
 }
 
 void advatek_manager::copyToNewVirtualDevice(sAdvatekDevice* fromDevice) {
@@ -277,10 +277,10 @@ void advatek_manager::addVirtualDevice(JSON_TYPE json_device, sImportOptions& im
 
 void advatek_manager::addVirtualDevice(sImportOptions& importOptions) {
 	tree_add_virt_device.clear();
-	ss_json.str(std::string());
-	ss_json.clear();
-	ss_json << importOptions.json;
-	tree_add_virt_device = JSON_TYPE::parse(ss_json.str());
+	//ss_json.str(std::string());
+	//ss_json.clear();
+	//ss_json << importOptions.json;
+	tree_add_virt_device = JSON_TYPE::parse(importOptions.json);
 
 	if (tree_add_virt_device.count("advatek_devices") > 0) {
 		// Might have multiple devices
@@ -1114,8 +1114,8 @@ void advatek_manager::exportJSON(sAdvatekDevice* device, std::string path) {
 	tree_exportJSON_devicesArr.clear();
 
 	getJSON(device, tree_exportJSON_device);
+	tree_exportJSON_devicesArr.push_back(tree_exportJSON_device);
 
-	tree_exportJSON_devicesArr.push_back(std::make_pair("", tree_exportJSON_device));
 	tree_exportJSON_devices["advatek_devices"]= tree_exportJSON_devicesArr;
 
 	std::ofstream outfile;
