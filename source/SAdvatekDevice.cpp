@@ -247,36 +247,27 @@ const std::stringstream& sAdvatekDevice::from_json(const JSON_TYPE& j, sImportOp
 	}
 
 	if (importOptions.dmx_outputs || importOptions.init) {
-		int tempNumDMXOutputs = NumDMXOutputs;
-
 		SetValueFromJson(uint8_t, NumDMXOutputs);
-		bool go = (tempNumDMXOutputs == NumDMXOutputs);
-		NumDMXOutputs = tempNumDMXOutputs;
-		if (go || importOptions.init) {
 
-			if (NumDMXOutputs == 0) { 
-				report << "- Import DMX Control Failed. (No DMX outputs found)\n";
-			}
-			else {
-				if (importOptions.init) {
-					SetValueFromJson(uint8_t, NumDMXOutputs);
-
-					if (DmxOutOn) delete[] DmxOutOn;
-					if (DmxOutUniv) delete[] DmxOutUniv;
-					if (TempDmxOutOn) delete[] TempDmxOutOn;
-
-					DmxOutOn = new uint8_t[NumDMXOutputs];
-					DmxOutUniv = new uint16_t[NumDMXOutputs];
-					TempDmxOutOn = new bool[NumDMXOutputs];
-				}
-				SetValueFromJson(uint8_t, ProtocolsOnDmxOut);
-				SetChildIntValuesFromJson(DmxOutOn);
-				SetChildIntValuesFromJson(DmxOutUniv);
-				report << "- Import DMX Control Succesfull.\n";
-			}
+		if (NumDMXOutputs == 0) { 
+			report << "- Import DMX Control Failed. (No DMX outputs found)\n";
 		}
 		else {
-			report << "- Import DMX Control Failed. (Output count does not match)\n";
+			if (importOptions.init) {
+				SetValueFromJson(uint8_t, NumDMXOutputs);
+
+				if (DmxOutOn) delete[] DmxOutOn;
+				if (DmxOutUniv) delete[] DmxOutUniv;
+				if (TempDmxOutOn) delete[] TempDmxOutOn;
+
+				DmxOutOn = new uint8_t[NumDMXOutputs];
+				DmxOutUniv = new uint16_t[NumDMXOutputs];
+				TempDmxOutOn = new bool[NumDMXOutputs];
+			}
+			SetValueFromJson(uint8_t, ProtocolsOnDmxOut);
+			SetChildIntValuesFromJson(DmxOutOn);
+			SetChildIntValuesFromJson(DmxOutUniv);
+			report << "- Import DMX Control Succesfull.\n";
 		}
 	}
 
