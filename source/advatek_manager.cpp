@@ -918,6 +918,13 @@ void advatek_manager::auto_sequence_channels(sAdvatekDevice* device) {
 	uint16_t ledCount = 3; // RGB (CurrentDriverType == 0)
 	if (device->CurrentDriverType == 1) ledCount = 4;
 
+	if (device->OutputUniv[0] == 0) {
+		device->OutputUniv[0] = 1;
+	}
+	if (device->OutputChan[0] == 0) {
+		device->OutputChan[0] = 1;
+	}
+
 	uint16_t startOutputUniv = device->OutputUniv[0];
 	uint16_t startOutputChan = device->OutputChan[0]; // device->CurrentDriverType
 	

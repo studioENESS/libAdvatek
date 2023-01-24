@@ -1,8 +1,6 @@
 #include "defines.h"
 #include "SAdvatekDevice.h"
 
-
-
 sAdvatekDevice::~sAdvatekDevice() {
 	if (Model) delete Model;
 	if (Firmware) delete Firmware;
