@@ -925,6 +925,9 @@ void advatek_manager::auto_sequence_channels(sAdvatekDevice* device) {
 	setEndUniverseChannel(startOutputUniv, startOutputChan, startOutputPixels, device->OutputGrouping[0], startEndUniverse, startEndChannel);
 
 	for (int output = 1; output < device->NumOutputs * 0.5; output++) {
+		
+		startEndChannel++;
+
 		if (startEndChannel > 510) {
 			startEndUniverse = startEndUniverse + 1;
 			startEndChannel -= 510;
