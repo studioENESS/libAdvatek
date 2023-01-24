@@ -922,7 +922,7 @@ void advatek_manager::auto_sequence_channels(sAdvatekDevice* device) {
 	uint16_t startEndUniverse = 1;
 	uint16_t startEndChannel = 1;
 
-	setEndUniverseChannel(startOutputUniv, startOutputChan, startOutputPixels, device->OutputGrouping[0], startEndUniverse, startEndChannel);
+	setEndUniverseChannel(startOutputUniv, startOutputChan, startOutputPixels, device->OutputGrouping[0], startEndUniverse, startEndChannel, device->CurrentDriverType);
 
 	for (int output = 1; output < device->NumOutputs * 0.5; output++) {
 		
@@ -940,7 +940,7 @@ void advatek_manager::auto_sequence_channels(sAdvatekDevice* device) {
 		startOutputUniv = device->OutputUniv[output];
 		startOutputChan = device->OutputChan[output];
 		startOutputPixels = device->OutputPixels[output];
-		setEndUniverseChannel(startOutputUniv, startOutputChan, startOutputPixels, device->OutputGrouping[output], startEndUniverse, startEndChannel);
+		setEndUniverseChannel(startOutputUniv, startOutputChan, startOutputPixels, device->OutputGrouping[output], startEndUniverse, startEndChannel, device->CurrentDriverType);
 	}
 	return;
 }
@@ -1173,9 +1173,13 @@ void advatek_manager::copyDevice(sAdvatekDevice* fromDevice, sAdvatekDevice* toD
 	importJSON(toDevice, importOptions);
 }
 
-void advatek_manager::setEndUniverseChannel(uint16_t startUniverse, uint16_t startChannel, uint16_t pixelCount, uint16_t outputGrouping, uint16_t& endUniverse, uint16_t& endChannel) {
+void advatek_manager::setEndUniverseChannel(uint16_t startUniverse, uint16_t startChannel, uint16_t pixelCount, uint16_t outputGrouping, uint16_t& endUniverse, uint16_t& endChannel, uint16_t currentDriverType = 0) {
 	pixelCount *= outputGrouping;
-	uint16_t pixelChannels = (3 * pixelCount); // R-G-B data // Take the chipset in account for RGBW?
+	uint16_t ledColours = 3; // RGB (currentDriverType == 0)
+	if (currentDriverType == 1) {
+		ledColours = 4; // RGBW
+	}
+	uint16_t pixelChannels = (ledColours * pixelCount);
 	uint16_t pixelUniverses = ((float)(startChannel + pixelChannels) / 510.f);
 
 	endUniverse = startUniverse + pixelUniverses;

@@ -129,7 +129,7 @@ public:
 	void exportJSON(std::vector<sAdvatekDevice*>& devices, std::string path);
 	std::string validateJSON(JSON_TYPE advatek_devices);
 
-	void setEndUniverseChannel(uint16_t startUniverse, uint16_t startChannel, uint16_t pixelCount, uint16_t outputGrouping, uint16_t& endUniverse, uint16_t& endChannel);
+	void setEndUniverseChannel(uint16_t startUniverse, uint16_t startChannel, uint16_t pixelCount, uint16_t outputGrouping, uint16_t& endUniverse, uint16_t& endChannel, uint16_t currentDriverType);
 	void load_ipStr(std::string ipStr, uint8_t* address);
 	void load_macStr(std::string macStr, uint8_t* address);
 
