@@ -72,6 +72,18 @@ const char* RGBW_Order[24] = {
    "W-B-G-R"
 };
 
+uint16_t roundClosest(uint16_t n, uint16_t m)
+{
+	// Smaller multiple
+	uint16_t a = (n / m) * m;
+
+	// Larger multiple
+	uint16_t b = a + m;
+
+	// Return of closest of two
+	return (n - a > b - n) ? b : a;
+}
+
 std::string macStr(uint8_t* address) {
 	std::stringstream ss;
 

@@ -64,6 +64,8 @@ struct sImportOptions {
 	bool returnResult = true;
 };
 
+uint16_t roundClosest(uint16_t n, uint16_t m);
+
 std::string macStr(uint8_t* address);
 std::string ipStr(uint8_t* address);
 

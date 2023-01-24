@@ -915,8 +915,17 @@ void advatek_manager::process_udp_message(uint8_t* data) {
 
 void advatek_manager::auto_sequence_channels(sAdvatekDevice* device) {
 
+	uint16_t ledCount = 3; // RGB (CurrentDriverType == 0)
+	if (device->CurrentDriverType == 1) ledCount = 4;
+
 	uint16_t startOutputUniv = device->OutputUniv[0];
-	uint16_t startOutputChan = device->OutputChan[0];
+	uint16_t startOutputChan = device->OutputChan[0]; // device->CurrentDriverType
+	
+	if ( (startOutputChan-1) % ledCount != 0) {
+		device->OutputChan[0] = roundClosest(device->OutputChan[0]-1, ledCount)+1;
+		startOutputChan = device->OutputChan[0];
+	}
+
 	uint16_t startOutputPixels = device->OutputPixels[0];
 
 	uint16_t startEndUniverse = 1;
