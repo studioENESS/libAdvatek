@@ -833,6 +833,7 @@ void advatek_manager::process_opPollReply(uint8_t* data) {
 
 	if (!deviceExist(connectedDevices, rec_data->Mac)) {
 		connectedDevices.emplace_back(rec_data);
+		sortDevices(connectedDevices, sortTypeConnected);
 	}
 	else {
 		if (rec_data) delete rec_data;
