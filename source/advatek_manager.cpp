@@ -180,7 +180,15 @@ bool advatek_manager::deviceCompatible(sAdvatekDevice* fromDevice, sAdvatekDevic
 	if (toDevice->MaxPixPerOutput != fromDevice->MaxPixPerOutput) compatible = false;
 	if (toDevice->NumOutputs != fromDevice->NumOutputs) compatible = false;
 	if (toDevice->NumDMXOutputs != fromDevice->NumDMXOutputs) compatible = false;
-	if (toDevice->NumDrivers != fromDevice->NumDrivers) compatible = false;
+	if (toDevice->NumDrivers != fromDevice->NumDrivers) {
+		if (fromDevice->CurrentDriver > toDevice->NumDrivers) {
+			// Uses a newer chipset
+			// Would be good to check the actual driver name
+			// so we can optionally "fix" te issue with a compatible driver
+			// But also, who knows if Advatek will keep using the index as ID
+			compatible = false;
+		}
+	}
 	if (toDevice->DriverNameLength != fromDevice->DriverNameLength) compatible = false;
 	return compatible;
 }
