@@ -149,8 +149,8 @@ bool advatek_manager::devicesInSync(sAdvatekDevice* fromDevice, sAdvatekDevice* 
 		if (toDevice->DmxOutUniv[output] != fromDevice->DmxOutUniv[output]) return false;
 	}
 
-	//NumDrivers
-	for (int output = 0; output < toDevice->NumDrivers; output++) {
+	//Drivers
+	for (int output = 0; output < toDevice->NumOutputs; output++) {
 		if (toDevice->DriverType[output] != fromDevice->DriverType[output]) return false;
 		if (toDevice->DriverSpeed[output] != fromDevice->DriverSpeed[output]) return false;
 		if (toDevice->DriverExpandable[output] != fromDevice->DriverExpandable[output]) return false;
