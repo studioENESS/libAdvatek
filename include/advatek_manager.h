@@ -138,6 +138,7 @@ public:
 	IClient* m_pUdpClient;
 
 	bool bTestAll = false;
+	bool bAutoPoll = true;
 
 	// ACT - Pixile Accessors
 	const std::vector<std::string>& NetworkAdaptors() const { return networkAdaptors; }
